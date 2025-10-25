@@ -1,114 +1,159 @@
 import React from "react";
-import { db } from "./db/db"; // reuse Dexie on main thread too
+import { dataService, IngestionStatus } from "./services/DataService";
+import { PreferencesProvider, usePreferences } from "./contexts/PreferencesContext";
+import LandingPage from "./components/LandingPage";
+import DashboardPage from "./components/DashboardPage";
+import PreferencesSettings from "./components/PreferencesSettings";
 
 function App() {
-  const [status, setStatus] = React.useState("Idle");
-  const [chunks, setChunks] = React.useState(0);
-  const [bytes, setBytes] = React.useState(0);
-  const [contentType, setContentType] = React.useState<string | null>(null);
-  const [httpStatus, setHttpStatus] = React.useState<number | null>(null);
-  const [preview, setPreview] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState<'landing' | 'dashboard'>('landing');
+  const [showPreferences, setShowPreferences] = React.useState(false);
+  const [ingestionStatus, setIngestionStatus] = React.useState<IngestionStatus>({
+    isIngesting: false,
+    progress: 0,
+    totalRows: 0,
+    error: null
+  });
 
   React.useEffect(() => {
-    const worker = new Worker(new URL("./worker/worker.ts", import.meta.url), {
-      type: "module",
+    // Subscribe to data service updates
+    const unsubscribe = dataService.subscribe((status) => {
+      console.log('Data service status update:', status);
+      setIngestionStatus(status);
+      
+      // If we have data and not ingesting, go directly to dashboard
+      if (status.totalRows > 0 && !status.isIngesting && currentPage === 'landing') {
+        console.log('Data exists, going directly to dashboard');
+        setCurrentPage('dashboard');
+      }
     });
 
-    worker.onmessage = (e: MessageEvent<any>) => {
-      const msg = e.data;
-      if (msg?.type === "INFO") {
-        if (msg.preview) setPreview(msg.preview);
-      } else if (msg?.type === "PROGRESS") {
-        setStatus("Ingesting…");
-        setChunks(msg.chunks);
-        setBytes(msg.bytes);
-      } else if (msg?.type === "DONE") {
-        setStatus("Done ✔");
-        setChunks(msg.chunks);
-        setBytes(msg.bytes);
-      } else if (msg?.type === "ERROR") {
-        setStatus(`Error: ${msg.message}`);
+    // Get initial status
+    const initialStatus = dataService.getStatus();
+    console.log('Initial status:', initialStatus);
+    setIngestionStatus(initialStatus);
+
+    // Wait for data service to initialize, then check if we need to start ingestion
+    const checkAndStartIngestion = async () => {
+      // Wait for data service to finish checking existing data
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const hasExistingData = await dataService.hasData();
+      const currentStatus = dataService.getStatus();
+      console.log('After initialization check:', { hasExistingData, currentStatus });
+      
+      if (hasExistingData) {
+        console.log('Data exists, going directly to dashboard');
+        setCurrentPage('dashboard');
+      } else if (!currentStatus.isIngesting && !currentStatus.error) {
+        console.log('No data found, starting ingestion');
+        dataService.startIngestion();
       }
     };
 
-    worker.postMessage({ type: "START" });
-    return () => worker.terminate();
-  }, []);
+    checkAndStartIngestion();
 
-  // Simple read-back from IndexedDB
-  const [dbCount, setDbCount] = React.useState<number>(0);
-  const [dbChars, setDbChars] = React.useState<number>(0);
-  const [dbHead, setDbHead] = React.useState<string>("");
+    return () => {
+      unsubscribe();
+    };
+  }, [currentPage]);
 
-  const inspectDb = async () => {
-    // how many chunks total
-    const cnt = await db.chunks.count();
+  const handleEnterDashboard = () => {
+    setCurrentPage('dashboard');
+  };
 
-    // peek at the first few chunks (in order)
-    const firstFew = await db.chunks.orderBy("seq").limit(3).toArray();
-
-    // stream through all records to sum character counts (memory-safe)
-    let totalChars = 0;
-    await db.chunks.toCollection().each((c) => {
-      totalChars += c.data.length;
-    });
-
-    setDbCount(cnt);
-    setDbChars(totalChars);
-    setDbHead(
-      firstFew
-        .map((c) => c.data)
-        .join("")
-        .slice(0, 400)
-    );
+  const handleBackToLanding = () => {
+    setCurrentPage('landing');
   };
 
   return (
-    <div style={{ fontFamily: "system-ui", padding: 16 }}>
-      <h1>UI Demo Data — Ingestion</h1>
+    <PreferencesProvider>
+      <AppContent 
+        currentPage={currentPage}
+        showPreferences={showPreferences}
+        ingestionStatus={ingestionStatus}
+        onEnterDashboard={handleEnterDashboard}
+        onBackToLanding={handleBackToLanding}
+        onTogglePreferences={() => setShowPreferences(!showPreferences)}
+        onClosePreferences={() => setShowPreferences(false)}
+      />
+    </PreferencesProvider>
+  );
+}
 
-      <p>
-        Status: <b>{status}</b>
-      </p>
-      <p>
-        HTTP status: <b>{httpStatus ?? "-"}</b>
-      </p>
-      <p>
-        Content-Type: <b>{contentType ?? "-"}</b>
-      </p>
-      <p>Worker preview (first ~400 chars):</p>
-      <pre
-        style={{ background: "#f5f5f5", padding: 8, whiteSpace: "pre-wrap" }}
+function AppContent({ 
+  currentPage, 
+  showPreferences, 
+  ingestionStatus, 
+  onEnterDashboard, 
+  onBackToLanding, 
+  onTogglePreferences,
+  onClosePreferences 
+}: {
+  currentPage: 'landing' | 'dashboard';
+  showPreferences: boolean;
+  ingestionStatus: IngestionStatus;
+  onEnterDashboard: () => void;
+  onBackToLanding: () => void;
+  onTogglePreferences: () => void;
+  onClosePreferences: () => void;
+}) {
+  const { preferences } = usePreferences();
+  const theme = React.useMemo(() => {
+    const { getThemeStyles } = require('./styles/theme');
+    return getThemeStyles(preferences);
+  }, [preferences]);
+
+  return (
+    <div style={{ 
+      minHeight: "100vh", 
+      backgroundColor: theme.colors.background,
+      color: theme.colors.text,
+      fontSize: theme.fontSize,
+    }}>
+      {/* Settings Button */}
+      <button
+        onClick={onTogglePreferences}
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 100,
+          padding: '12px',
+          backgroundColor: theme.colors.primary,
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '50%',
+          cursor: 'pointer',
+          fontSize: '18px',
+          boxShadow: theme.shadows.md,
+          transition: 'all 0.2s ease',
+        }}
+        title="Settings"
       >
-        {preview || "(no data yet)"}
-      </pre>
+        ⚙️
+      </button>
 
-      <p>
-        Chunks stored: <b>{chunks.toLocaleString()}</b>
-      </p>
-      <p>
-        Bytes streamed (network): <b>{bytes.toLocaleString()}</b>
-      </p>
+      {currentPage === 'landing' ? (
+        <LandingPage 
+          onEnterDashboard={onEnterDashboard}
+          ingestionProgress={ingestionStatus.progress}
+          isIngesting={ingestionStatus.isIngesting}
+          totalRows={ingestionStatus.totalRows}
+        />
+      ) : (
+        <DashboardPage 
+          isIngesting={ingestionStatus.isIngesting}
+          ingestionProgress={ingestionStatus.progress}
+          totalRows={ingestionStatus.totalRows}
+          onBackToLanding={onBackToLanding}
+        />
+      )}
 
-      <hr />
-
-      <button onClick={inspectDb}>Inspect IndexedDB</button>
-      <p>
-        DB chunks: <b>{dbCount}</b>
-      </p>
-      <p>
-        Total characters in DB: <b>{dbChars.toLocaleString()}</b>
-      </p>
-      <p>DB head (first ~400 chars joined):</p>
-      <pre style={{ background: "#eef", padding: 8, whiteSpace: "pre-wrap" }}>
-        {dbHead || "(click Inspect IndexedDB)"}
-      </pre>
-
-      <p style={{ color: "#666", maxWidth: 700 }}>
-        If Content-Type shows <code>text/html</code> and the preview is HTML,
-        you’re fetching the GitHub HTML page. Use the raw URL:{" "}
-        <code>https://raw.githubusercontent.com/…/ui_demo.json</code>.
-      </p>
+      <PreferencesSettings 
+        isOpen={showPreferences}
+        onClose={onClosePreferences}
+      />
     </div>
   );
 }
