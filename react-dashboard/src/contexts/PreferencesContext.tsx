@@ -6,10 +6,6 @@ interface PreferencesContextType {
   preferences: UserPreferences;
   updatePreferences: (updates: Partial<UserPreferences>) => void;
   resetPreferences: () => void;
-  toggleTheme: () => void;
-  toggleDarkMode: () => void;
-  toggleCompactMode: () => void;
-  toggleSidebar: () => void;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
@@ -45,32 +41,12 @@ export const PreferencesProvider: React.FC<PreferencesProviderProps> = ({ childr
     preferencesService.resetPreferences();
   };
 
-  const toggleTheme = () => {
-    preferencesService.toggleTheme();
-  };
-
-  const toggleDarkMode = () => {
-    preferencesService.toggleDarkMode();
-  };
-
-  const toggleCompactMode = () => {
-    preferencesService.toggleCompactMode();
-  };
-
-  const toggleSidebar = () => {
-    preferencesService.toggleSidebar();
-  };
-
   return (
     <PreferencesContext.Provider
       value={{
         preferences,
         updatePreferences,
         resetPreferences,
-        toggleTheme,
-        toggleDarkMode,
-        toggleCompactMode,
-        toggleSidebar,
       }}
     >
       {children}

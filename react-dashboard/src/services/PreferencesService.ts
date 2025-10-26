@@ -1,4 +1,4 @@
-import { UserPreferences, DEFAULT_PREFERENCES } from '../types/preferences';
+import { UserPreferences, DEFAULT_PREFERENCES } from "../types/preferences";
 
 class PreferencesService {
   private preferences: UserPreferences = { ...DEFAULT_PREFERENCES };
@@ -10,22 +10,27 @@ class PreferencesService {
 
   private loadPreferences(): void {
     try {
-      const stored = localStorage.getItem('vulnerability-dashboard-preferences');
+      const stored = localStorage.getItem(
+        "vulnerability-dashboard-preferences"
+      );
       if (stored) {
         const parsed = JSON.parse(stored);
         this.preferences = { ...DEFAULT_PREFERENCES, ...parsed };
       }
     } catch (error) {
-      console.error('Error loading preferences:', error);
+      console.error("Error loading preferences:", error);
       this.preferences = { ...DEFAULT_PREFERENCES };
     }
   }
 
   private savePreferences(): void {
     try {
-      localStorage.setItem('vulnerability-dashboard-preferences', JSON.stringify(this.preferences));
+      localStorage.setItem(
+        "vulnerability-dashboard-preferences",
+        JSON.stringify(this.preferences)
+      );
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      console.error("Error saving preferences:", error);
     }
   }
 
@@ -45,7 +50,9 @@ class PreferencesService {
     this.notifyListeners();
   }
 
-  public subscribe(listener: (preferences: UserPreferences) => void): () => void {
+  public subscribe(
+    listener: (preferences: UserPreferences) => void
+  ): () => void {
     this.listeners.push(listener);
     return () => {
       const index = this.listeners.indexOf(listener);
@@ -56,27 +63,7 @@ class PreferencesService {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(listener => listener({ ...this.preferences }));
-  }
-
-  // Helper methods for common operations
-  public toggleTheme(): void {
-    const currentTheme = this.preferences.theme;
-    const newTheme = currentTheme === 'light' ? 'dark' : 
-                    currentTheme === 'dark' ? 'auto' : 'light';
-    this.updatePreferences({ theme: newTheme });
-  }
-
-  public toggleDarkMode(): void {
-    this.updatePreferences({ theme: this.preferences.theme === 'dark' ? 'light' : 'dark' });
-  }
-
-  public toggleCompactMode(): void {
-    this.updatePreferences({ compactMode: !this.preferences.compactMode });
-  }
-
-  public toggleSidebar(): void {
-    this.updatePreferences({ sidebarCollapsed: !this.preferences.sidebarCollapsed });
+    this.listeners.forEach((listener) => listener({ ...this.preferences }));
   }
 }
 

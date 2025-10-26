@@ -1,0 +1,135 @@
+.landing-page {
+  font-family: system-ui;
+  padding: 40px 20px;
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.landing-page h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.landing-page .description {
+  font-size: 1.2rem;
+  color: #7f8c8d;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.features-container {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.features-container h2 {
+  color: #495057;
+  margin-bottom: 1rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.feature-card {
+  padding: 1rem;
+  background-color: white;
+  border-radius: 4px;
+}
+
+.feature-card h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.feature-card p {
+  margin: 0;
+  color: #6c757d;
+}
+
+.critical-severity {
+  color: #dc3545;
+}
+
+.high-severity {
+  color: #fd7e14;
+}
+
+.medium-severity {
+  color: #ffc107;
+}
+
+.low-severity {
+  color: #28a745;
+}
+
+.loading-container {
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.loading-container h3 {
+  color: #1976d2;
+  margin: 0 0 1rem 0;
+}
+
+.progress-container {
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background-color: #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #2196f3;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  margin: 0.5rem 0 0 0;
+  color: #1976d2;
+}
+
+.loading-description {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.enter-dashboard-btn {
+  padding: 16px 32px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.enter-dashboard-btn:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.success-message {
+  margin-top: 1rem;
+  color: #28a745;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,161 @@
+.dashboard-page {
+  font-family: system-ui;
+  padding: 16px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.dashboard-title-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dashboard-title {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.back-button {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.back-button:hover {
+  background-color: #5a6268;
+}
+
+.dashboard-stats {
+  text-align: right;
+}
+
+.dashboard-stats-label {
+  margin: 0 0 0.25rem 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.dashboard-stats-value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #495057;
+}
+
+.loading-page {
+  font-family: system-ui;
+  padding: 40px 20px;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.loading-page h1 {
+  color: #2c3e50;
+  margin-bottom: 2rem;
+}
+
+.loading-card {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.loading-card h3 {
+  color: #495057;
+  margin-bottom: 1rem;
+}
+
+.loading-progress-container {
+  margin-bottom: 1rem;
+}
+
+.loading-progress-bar {
+  width: 100%;
+  height: 16px;
+  background-color: #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.loading-progress-fill {
+  height: 100%;
+  background-color: #007bff;
+  transition: width 0.3s ease;
+}
+
+.loading-progress-text {
+  margin: 0.5rem 0 0 0;
+  color: #495057;
+}
+
+.loading-description {
+  margin: 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.loading-status {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.no-data-page {
+  font-family: system-ui;
+  padding: 40px 20px;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.no-data-page h1 {
+  color: #dc3545;
+  margin-bottom: 2rem;
+}
+
+.no-data-card {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.no-data-card p {
+  margin: 0;
+  color: #721c24;
+}
+
+.ingestion-notice {
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ingestion-notice p {
+  margin: 0;
+  color: #0c5460;
+  font-size: 0.9rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}

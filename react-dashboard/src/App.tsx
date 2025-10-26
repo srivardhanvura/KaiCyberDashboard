@@ -1,52 +1,62 @@
 import React from "react";
 import { dataService, IngestionStatus } from "./services/DataService";
-import { PreferencesProvider, usePreferences } from "./contexts/PreferencesContext";
+import {
+  PreferencesProvider,
+  usePreferences,
+} from "./contexts/PreferencesContext";
 import LandingPage from "./components/LandingPage";
 import DashboardPage from "./components/DashboardPage";
 import PreferencesSettings from "./components/PreferencesSettings";
+import { getThemeStyles } from "./styles/theme";
 
-function App() {
-  const [currentPage, setCurrentPage] = React.useState<'landing' | 'dashboard'>('landing');
+const App = () => {
+  const [currentPage, setCurrentPage] = React.useState<"landing" | "dashboard">(
+    "landing"
+  );
   const [showPreferences, setShowPreferences] = React.useState(false);
-  const [ingestionStatus, setIngestionStatus] = React.useState<IngestionStatus>({
-    isIngesting: false,
-    progress: 0,
-    totalRows: 0,
-    error: null
-  });
+  const [ingestionStatus, setIngestionStatus] = React.useState<IngestionStatus>(
+    {
+      isIngesting: false,
+      progress: 0,
+      totalRows: 0,
+      error: null,
+    }
+  );
 
   React.useEffect(() => {
-    // Subscribe to data service updates
     const unsubscribe = dataService.subscribe((status) => {
-      console.log('Data service status update:', status);
+      console.log("Data service status update:", status);
       setIngestionStatus(status);
-      
-      // If we have data and not ingesting, go directly to dashboard
-      if (status.totalRows > 0 && !status.isIngesting && currentPage === 'landing') {
-        console.log('Data exists, going directly to dashboard');
-        setCurrentPage('dashboard');
+
+      if (
+        status.totalRows > 0 &&
+        !status.isIngesting &&
+        currentPage === "landing"
+      ) {
+        console.log("Data exists, going directly to dashboard");
+        setCurrentPage("dashboard");
       }
     });
 
-    // Get initial status
     const initialStatus = dataService.getStatus();
-    console.log('Initial status:', initialStatus);
+    console.log("Initial status:", initialStatus);
     setIngestionStatus(initialStatus);
 
-    // Wait for data service to initialize, then check if we need to start ingestion
     const checkAndStartIngestion = async () => {
-      // Wait for data service to finish checking existing data
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       const hasExistingData = await dataService.hasData();
       const currentStatus = dataService.getStatus();
-      console.log('After initialization check:', { hasExistingData, currentStatus });
-      
+      console.log("After initialization check:", {
+        hasExistingData,
+        currentStatus,
+      });
+
       if (hasExistingData) {
-        console.log('Data exists, going directly to dashboard');
-        setCurrentPage('dashboard');
+        console.log("Data exists, going directly to dashboard");
+        setCurrentPage("dashboard");
       } else if (!currentStatus.isIngesting && !currentStatus.error) {
-        console.log('No data found, starting ingestion');
+        console.log("No data found, starting ingestion");
         dataService.startIngestion();
       }
     };
@@ -59,16 +69,16 @@ function App() {
   }, [currentPage]);
 
   const handleEnterDashboard = () => {
-    setCurrentPage('dashboard');
+    setCurrentPage("dashboard");
   };
 
   const handleBackToLanding = () => {
-    setCurrentPage('landing');
+    setCurrentPage("landing");
   };
 
   return (
     <PreferencesProvider>
-      <AppContent 
+      <AppContent
         currentPage={currentPage}
         showPreferences={showPreferences}
         ingestionStatus={ingestionStatus}
@@ -79,70 +89,70 @@ function App() {
       />
     </PreferencesProvider>
   );
-}
+};
 
-function AppContent({ 
-  currentPage, 
-  showPreferences, 
-  ingestionStatus, 
-  onEnterDashboard, 
-  onBackToLanding, 
+const AppContent = ({
+  currentPage,
+  showPreferences,
+  ingestionStatus,
+  onEnterDashboard,
+  onBackToLanding,
   onTogglePreferences,
-  onClosePreferences 
+  onClosePreferences,
 }: {
-  currentPage: 'landing' | 'dashboard';
+  currentPage: "landing" | "dashboard";
   showPreferences: boolean;
   ingestionStatus: IngestionStatus;
   onEnterDashboard: () => void;
   onBackToLanding: () => void;
   onTogglePreferences: () => void;
   onClosePreferences: () => void;
-}) {
+}) => {
   const { preferences } = usePreferences();
   const theme = React.useMemo(() => {
-    const { getThemeStyles } = require('./styles/theme');
     return getThemeStyles(preferences);
   }, [preferences]);
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      backgroundColor: theme.colors.background,
-      color: theme.colors.text,
-      fontSize: theme.fontSize,
-    }}>
-      {/* Settings Button */}
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: theme.colors.background,
+        color: theme.colors.text,
+        fontSize: theme.fontSize,
+      }}
+    >
       <button
         onClick={onTogglePreferences}
         style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
+          position: "fixed",
+          top: "20px",
+          right: "20px",
           zIndex: 100,
-          padding: '12px',
+          padding: "12px",
           backgroundColor: theme.colors.primary,
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: '50%',
-          cursor: 'pointer',
-          fontSize: '18px',
+          color: "#ffffff",
+          border: "none",
+          borderRadius: "50%",
+          cursor: "pointer",
+          fontSize: "18px",
           boxShadow: theme.shadows.md,
-          transition: 'all 0.2s ease',
+          transition: "all 0.2s ease",
         }}
         title="Settings"
       >
         ⚙️
       </button>
 
-      {currentPage === 'landing' ? (
-        <LandingPage 
+      {currentPage === "landing" ? (
+        <LandingPage
           onEnterDashboard={onEnterDashboard}
           ingestionProgress={ingestionStatus.progress}
           isIngesting={ingestionStatus.isIngesting}
           totalRows={ingestionStatus.totalRows}
         />
       ) : (
-        <DashboardPage 
+        <DashboardPage
           isIngesting={ingestionStatus.isIngesting}
           ingestionProgress={ingestionStatus.progress}
           totalRows={ingestionStatus.totalRows}
@@ -150,12 +160,12 @@ function AppContent({
         />
       )}
 
-      <PreferencesSettings 
+      <PreferencesSettings
         isOpen={showPreferences}
         onClose={onClosePreferences}
       />
     </div>
   );
-}
+};
 
 export default App;

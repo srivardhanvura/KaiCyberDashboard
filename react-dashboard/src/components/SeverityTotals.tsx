@@ -1,7 +1,8 @@
 import React from "react";
 import { db } from "../db/db";
+import "./SeverityTotals.css";
 
-function SeverityTotals() {
+const SeverityTotals = () => {
   const [rows, setRows] = React.useState<{ severity: string; count: number }[]>(
     []
   );
@@ -9,9 +10,8 @@ function SeverityTotals() {
   const refresh = React.useCallback(async () => {
     try {
       const all = await db.aggSeverity.toArray();
-      console.log('SeverityTotals - aggSeverity data:', all);
-      
-      // show in a consistent order
+      console.log("SeverityTotals - aggSeverity data:", all);
+
       const order = ["critical", "high", "medium", "low", "unknown"] as const;
       type SevKey = (typeof order)[number];
       const map = new Map(all.map((a) => [a.severity, a.count]));
@@ -19,33 +19,33 @@ function SeverityTotals() {
         severity: s,
         count: map.get(s) ?? 0,
       }));
-      
-      console.log('SeverityTotals - processed data:', result);
+
+      console.log("SeverityTotals - processed data:", result);
       setRows(result);
     } catch (error) {
-      console.error('Error refreshing SeverityTotals:', error);
+      console.error("Error refreshing SeverityTotals:", error);
     }
   }, []);
 
   React.useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 1000); // light polling while ingest runs
+    const id = setInterval(refresh, 1000);
     return () => clearInterval(id);
   }, [refresh]);
 
   return (
-    <div>
+    <div className="severity-totals">
       <h3>Totals by severity</h3>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      <ul className="severity-list">
         {rows.map((r) => (
-          <li key={r.severity} style={{ padding: "4px 0" }}>
-            <b style={{ width: 90, display: "inline-block" }}>{r.severity}</b>{" "}
+          <li key={r.severity} className="severity-item">
+            <b className="severity-label">{r.severity}</b>{" "}
             {r.count.toLocaleString()}
           </li>
         ))}
       </ul>
     </div>
   );
-}
+};
 
 export default SeverityTotals;

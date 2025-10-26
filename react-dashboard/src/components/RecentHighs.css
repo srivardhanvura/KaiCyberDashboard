@@ -1,0 +1,68 @@
+.recent-highs {
+  /* Container styles if needed */
+}
+
+.recent-highs h3 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+}
+
+.vulnerabilities-container {
+  max-height: 400px;
+  overflow: auto;
+  border: 1px solid #eee;
+}
+
+.vulnerabilities-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vulnerabilities-table thead tr {
+  text-align: left;
+}
+
+.vulnerabilities-table th {
+  padding: 6px;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.vulnerabilities-table tbody tr {
+  border-top: 1px solid #f2f2f2;
+}
+
+.vulnerabilities-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.vulnerabilities-table td {
+  padding: 6px;
+  font-size: 0.9rem;
+}
+
+.severity-critical {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.severity-high {
+  color: #fd7e14;
+  font-weight: bold;
+}
+
+.severity-medium {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+.severity-low {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.severity-unknown {
+  color: #6c757d;
+  font-weight: bold;
+}

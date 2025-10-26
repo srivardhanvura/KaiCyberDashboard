@@ -13,7 +13,7 @@ class DataService {
     isIngesting: false,
     progress: 0,
     totalRows: 0,
-    error: null
+    error: null,
   };
   private listeners: ((status: IngestionStatus) => void)[] = [];
 
@@ -25,28 +25,29 @@ class DataService {
     try {
       const count = await db.vulns.count();
       const aggCount = await db.aggSeverity.count();
-      console.log(`Found ${count} existing vulnerabilities and ${aggCount} aggregate records in database`);
-      
+      console.log(
+        `Found ${count} existing vulnerabilities and ${aggCount} aggregate records in database`
+      );
+
       if (count > 0) {
         this.status.totalRows = count;
         this.status.isIngesting = false;
         this.status.progress = 100;
         this.status.error = null;
-        
-        // Check if aggregates exist, if not regenerate them
+
         if (aggCount === 0) {
-          console.log('No aggregates found, regenerating...');
+          console.log("No aggregates found, regenerating...");
           await this.regenerateAggregates();
         }
-        
+
         this.notifyListeners();
-        console.log('Data already exists, skipping ingestion');
+        console.log("Data already exists, skipping ingestion");
       } else {
-        console.log('No existing data found');
+        console.log("No existing data found");
       }
     } catch (error) {
-      console.error('Error checking existing data:', error);
-      this.status.error = 'Failed to check existing data';
+      console.error("Error checking existing data:", error);
+      this.status.error = "Failed to check existing data";
       this.notifyListeners();
     }
   }
@@ -56,35 +57,41 @@ class DataService {
       const count = await db.vulns.count();
       return count > 0;
     } catch (error) {
-      console.error('Error checking for data:', error);
+      console.error("Error checking for data:", error);
       return false;
     }
   }
 
   public startIngestion(): void {
     if (this.status.isIngesting) {
-      console.log('Ingestion already in progress');
+      console.log("Ingestion already in progress");
       return;
     }
 
-    console.log('Starting data ingestion...');
+    console.log("Starting data ingestion...");
     this.status = {
       isIngesting: true,
       progress: 0,
       totalRows: 0,
-      error: null
+      error: null,
     };
     this.notifyListeners();
 
     try {
-      this.worker = new Worker(new URL("../worker/worker-streaming.ts", import.meta.url), {
-        type: "module",
-      });
+      this.worker = new Worker(
+        new URL("../worker/worker.ts", import.meta.url),
+        {
+          type: "module",
+        }
+      );
 
       this.worker.onmessage = (e: MessageEvent<any>) => {
         const msg = e.data;
         if (msg?.type === "PROGRESS") {
-          this.status.progress = Math.min((msg.rowsWritten / 250000) * 100, 100);
+          this.status.progress = Math.min(
+            (msg.rowsWritten / 250000) * 100,
+            100
+          );
           this.status.totalRows = msg.rowsWritten;
           this.notifyListeners();
         } else if (msg?.type === "DONE") {
@@ -102,16 +109,16 @@ class DataService {
       };
 
       this.worker.onerror = (error) => {
-        console.error('Worker error:', error);
+        console.error("Worker error:", error);
         this.status.isIngesting = false;
-        this.status.error = `Worker error: ${error.message || 'Unknown error'}`;
+        this.status.error = `Worker error: ${error.message || "Unknown error"}`;
         this.notifyListeners();
         this.cleanup();
       };
 
       this.worker.postMessage({ type: "START" });
     } catch (error) {
-      console.error('Failed to create worker:', error);
+      console.error("Failed to create worker:", error);
       this.status.isIngesting = false;
       this.status.error = `Failed to create worker: ${error}`;
       this.notifyListeners();
@@ -133,7 +140,7 @@ class DataService {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(listener => listener({ ...this.status }));
+    this.listeners.forEach((listener) => listener({ ...this.status }));
   }
 
   private cleanup(): void {
@@ -145,36 +152,36 @@ class DataService {
 
   public async regenerateAggregates(): Promise<void> {
     try {
-      console.log('Regenerating severity aggregates...');
-      
-      // Get all vulnerabilities and count by severity
+      console.log("Regenerating severity aggregates...");
+
       const allVulns = await db.vulns.toArray();
       const sevCounts = new Map<string, number>();
-      
-      allVulns.forEach(vuln => {
+
+      allVulns.forEach((vuln) => {
         const severity = vuln.severity;
         sevCounts.set(severity, (sevCounts.get(severity) || 0) + 1);
       });
-      
-      console.log('Calculated severity counts:', Object.fromEntries(sevCounts));
-      
-      // Clear and repopulate aggregates
+
+      console.log("Calculated severity counts:", Object.fromEntries(sevCounts));
+
       await db.transaction("rw", db.aggSeverity, async () => {
         await db.aggSeverity.clear();
-        const rows = Array.from(sevCounts.entries()).map(([severity, count]) => ({
-          severity: severity as any,
-          count
-        }));
-        
+        const rows = Array.from(sevCounts.entries()).map(
+          ([severity, count]) => ({
+            severity: severity as any,
+            count,
+          })
+        );
+
         if (rows.length) {
           await db.aggSeverity.bulkPut(rows);
-          console.log('Aggregates regenerated successfully:', rows);
+          console.log("Aggregates regenerated successfully:", rows);
         }
       });
-      
+
       this.notifyListeners();
     } catch (error) {
-      console.error('Error regenerating aggregates:', error);
+      console.error("Error regenerating aggregates:", error);
     }
   }
 
@@ -188,13 +195,13 @@ class DataService {
         isIngesting: false,
         progress: 0,
         totalRows: 0,
-        error: null
+        error: null,
       };
       this.notifyListeners();
-      console.log('Data cleared successfully');
+      console.log("Data cleared successfully");
     } catch (error) {
-      console.error('Error clearing data:', error);
-      this.status.error = 'Failed to clear data';
+      console.error("Error clearing data:", error);
+      this.status.error = "Failed to clear data";
       this.notifyListeners();
     }
   }
