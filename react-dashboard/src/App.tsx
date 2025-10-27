@@ -1,4 +1,10 @@
 import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { dataService, IngestionStatus } from "./services/DataService";
 import {
   PreferencesProvider,
@@ -6,14 +12,18 @@ import {
 } from "./contexts/PreferencesContext";
 import LandingPage from "./components/LandingPage";
 import DashboardPage from "./components/DashboardPage";
+import VulnerabilitiesPage from "./components/VulnerabilitiesPage";
 import PreferencesSettings from "./components/PreferencesSettings";
+import AppThemeProvider from "./components/ThemeProvider";
+import NavigationDrawer from "./components/NavigationDrawer";
+import TopNavigation from "./components/TopNavigation";
 import { getThemeStyles } from "./styles/theme";
+// remove this
+// import "./utils/clearDatabase";
 
 const App = () => {
-  const [currentPage, setCurrentPage] = React.useState<"landing" | "dashboard">(
-    "landing"
-  );
   const [showPreferences, setShowPreferences] = React.useState(false);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [ingestionStatus, setIngestionStatus] = React.useState<IngestionStatus>(
     {
       isIngesting: false,
@@ -27,15 +37,6 @@ const App = () => {
     const unsubscribe = dataService.subscribe((status) => {
       console.log("Data service status update:", status);
       setIngestionStatus(status);
-
-      if (
-        status.totalRows > 0 &&
-        !status.isIngesting &&
-        currentPage === "landing"
-      ) {
-        console.log("Data exists, going directly to dashboard");
-        setCurrentPage("dashboard");
-      }
     });
 
     const initialStatus = dataService.getStatus();
@@ -52,10 +53,11 @@ const App = () => {
         currentStatus,
       });
 
-      if (hasExistingData) {
-        console.log("Data exists, going directly to dashboard");
-        setCurrentPage("dashboard");
-      } else if (!currentStatus.isIngesting && !currentStatus.error) {
+      if (
+        !hasExistingData &&
+        !currentStatus.isIngesting &&
+        !currentStatus.error
+      ) {
         console.log("No data found, starting ingestion");
         dataService.startIngestion();
       }
@@ -66,47 +68,43 @@ const App = () => {
     return () => {
       unsubscribe();
     };
-  }, [currentPage]);
-
-  const handleEnterDashboard = () => {
-    setCurrentPage("dashboard");
-  };
-
-  const handleBackToLanding = () => {
-    setCurrentPage("landing");
-  };
+  }, []);
 
   return (
     <PreferencesProvider>
-      <AppContent
-        currentPage={currentPage}
-        showPreferences={showPreferences}
-        ingestionStatus={ingestionStatus}
-        onEnterDashboard={handleEnterDashboard}
-        onBackToLanding={handleBackToLanding}
-        onTogglePreferences={() => setShowPreferences(!showPreferences)}
-        onClosePreferences={() => setShowPreferences(false)}
-      />
+      <AppThemeProvider>
+        <Router>
+          <AppContent
+            showPreferences={showPreferences}
+            drawerOpen={drawerOpen}
+            ingestionStatus={ingestionStatus}
+            onTogglePreferences={() => setShowPreferences(!showPreferences)}
+            onClosePreferences={() => setShowPreferences(false)}
+            onToggleDrawer={() => setDrawerOpen(!drawerOpen)}
+            onCloseDrawer={() => setDrawerOpen(false)}
+          />
+        </Router>
+      </AppThemeProvider>
     </PreferencesProvider>
   );
 };
 
 const AppContent = ({
-  currentPage,
   showPreferences,
+  drawerOpen,
   ingestionStatus,
-  onEnterDashboard,
-  onBackToLanding,
   onTogglePreferences,
   onClosePreferences,
+  onToggleDrawer,
+  onCloseDrawer,
 }: {
-  currentPage: "landing" | "dashboard";
   showPreferences: boolean;
+  drawerOpen: boolean;
   ingestionStatus: IngestionStatus;
-  onEnterDashboard: () => void;
-  onBackToLanding: () => void;
   onTogglePreferences: () => void;
   onClosePreferences: () => void;
+  onToggleDrawer: () => void;
+  onCloseDrawer: () => void;
 }) => {
   const { preferences } = usePreferences();
   const theme = React.useMemo(() => {
@@ -122,43 +120,62 @@ const AppContent = ({
         fontSize: theme.fontSize,
       }}
     >
-      <button
-        onClick={onTogglePreferences}
-        style={{
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          zIndex: 100,
-          padding: "12px",
-          backgroundColor: theme.colors.primary,
-          color: "#ffffff",
-          border: "none",
-          borderRadius: "50%",
-          cursor: "pointer",
-          fontSize: "18px",
-          boxShadow: theme.shadows.md,
-          transition: "all 0.2s ease",
-        }}
-        title="Settings"
-      >
-        ⚙️
-      </button>
+      <NavigationDrawer
+        open={drawerOpen}
+        onClose={onCloseDrawer}
+        onOpenSettings={onTogglePreferences}
+      />
 
-      {currentPage === "landing" ? (
-        <LandingPage
-          onEnterDashboard={onEnterDashboard}
-          ingestionProgress={ingestionStatus.progress}
-          isIngesting={ingestionStatus.isIngesting}
-          totalRows={ingestionStatus.totalRows}
+      <Routes>
+        <Route path="/" element={<Navigate to="/landing" replace />} />
+        <Route
+          path="/landing"
+          element={
+            <>
+              <TopNavigation
+                onMenuClick={onToggleDrawer}
+                onSettingsClick={onTogglePreferences}
+                title="KaiCyber Dashboard"
+              />
+              <LandingPage
+                ingestionProgress={ingestionStatus.progress}
+                isIngesting={ingestionStatus.isIngesting}
+                totalRows={ingestionStatus.totalRows}
+              />
+            </>
+          }
         />
-      ) : (
-        <DashboardPage
-          isIngesting={ingestionStatus.isIngesting}
-          ingestionProgress={ingestionStatus.progress}
-          totalRows={ingestionStatus.totalRows}
-          onBackToLanding={onBackToLanding}
+        <Route
+          path="/dashboard"
+          element={
+            <>
+              <TopNavigation
+                onMenuClick={onToggleDrawer}
+                onSettingsClick={onTogglePreferences}
+                title="Dashboard"
+              />
+              <DashboardPage
+                isIngesting={ingestionStatus.isIngesting}
+                ingestionProgress={ingestionStatus.progress}
+                totalRows={ingestionStatus.totalRows}
+              />
+            </>
+          }
         />
-      )}
+        <Route
+          path="/vulnerabilities"
+          element={
+            <>
+              <TopNavigation
+                onMenuClick={onToggleDrawer}
+                onSettingsClick={onTogglePreferences}
+                title="Vulnerabilities"
+              />
+              <VulnerabilitiesPage />
+            </>
+          }
+        />
+      </Routes>
 
       <PreferencesSettings
         isOpen={showPreferences}

@@ -1,7 +1,12 @@
 /// <reference lib="webworker" />
 
 import { db } from "../db/db";
-import type { VulnRow, Severity, WorkerIn, WorkerOut } from "../types";
+import type {
+  VulnRow,
+  Severity,
+  WorkerIn,
+  WorkerOut,
+} from "../types";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -25,6 +30,22 @@ const sevNorm = (s: any): Severity => {
     ? v
     : "unknown";
 };
+
+const getRandomTags = (): string[] => {
+  const allTags = [
+    "production",
+    "staging",
+    "development",
+    "security-critical",
+    "public-facing",
+    "internal",
+    "legacy",
+    "new-feature",
+  ];
+  const numTags = Math.floor(Math.random() * 3) + 1;
+  return allTags.sort(() => 0.5 - Math.random()).slice(0, numTags);
+};
+
 const parseMs = (s?: string) => (s ? Date.parse(s) : undefined);
 
 const ingest = async () => {
@@ -51,7 +72,7 @@ const ingest = async () => {
     const jsonData = await res.json();
     console.log("JSON parsed successfully");
 
-    const BATCH_SIZE = 5000;
+    const BATCH_SIZE = 10000;
     const vulnRows: VulnRow[] = [];
     const sevCounts = new Map<Severity | "unknown", number>();
     let totalWritten = 0;
@@ -60,16 +81,23 @@ const ingest = async () => {
     console.log(`Found ${groups.length} groups to process`);
 
     const GROUP_BATCH_SIZE = 10;
-    
-    for (let batchStart = 0; batchStart < groups.length; batchStart += GROUP_BATCH_SIZE) {
-      const groupBatch = groups.slice(batchStart, batchStart + GROUP_BATCH_SIZE);
-      
+
+    for (
+      let batchStart = 0;
+      batchStart < groups.length;
+      batchStart += GROUP_BATCH_SIZE
+    ) {
+      const groupBatch = groups.slice(
+        batchStart,
+        batchStart + GROUP_BATCH_SIZE
+      );
+
       for (const group of groupBatch) {
         const repos: any[] = Object.values(group.repos || {});
-        
+
         for (const repo of repos) {
           const images: any[] = Object.values(repo.images || {});
-          
+
           for (const image of images) {
             if (image.vulnerabilities && Array.isArray(image.vulnerabilities)) {
               for (const vuln of image.vulnerabilities) {
@@ -82,6 +110,11 @@ const ingest = async () => {
                 }|${vuln.packageVersion || ""}`;
                 const severity = sevNorm(vuln.severity);
 
+                const now = Date.now();
+                const discoveredAt = publishedAt
+                  ? publishedAt
+                  : now;
+
                 const row: VulnRow = {
                   id,
                   group: group.name || "",
@@ -92,6 +125,7 @@ const ingest = async () => {
                   cve: vuln.cve,
                   severity,
                   cvss: typeof vuln.cvss === "number" ? vuln.cvss : undefined,
+                  description: vuln.description || "",
                   status: vuln.status,
                   packageName: vuln.packageName,
                   packageVersion: vuln.packageVersion,
@@ -99,6 +133,15 @@ const ingest = async () => {
                   publishedAt,
                   fixDate,
                   riskFactors,
+                  kaiStatus: vuln.kaiStatus || "",
+                  discoveredAt: Math.floor(discoveredAt),
+                  exploitabilityScore: vuln.cvss
+                    ? Math.random() * vuln.cvss
+                    : undefined,
+                  impactScore: vuln.cvss
+                    ? vuln.cvss - Math.random() * vuln.cvss * 0.5
+                    : undefined,
+                  tags: getRandomTags(),
                 };
 
                 vulnRows.push(row);
@@ -106,16 +149,16 @@ const ingest = async () => {
 
                 if (vulnRows.length >= BATCH_SIZE) {
                   console.log(
-                    `Processing batch of ${vulnRows.length} rows, total so far: ${
-                      totalWritten + vulnRows.length
-                    }`
+                    `Processing batch of ${
+                      vulnRows.length
+                    } rows, total so far: ${totalWritten + vulnRows.length}`
                   );
                   await db.vulns.bulkPut(vulnRows);
                   totalWritten += vulnRows.length;
                   post({ type: "PROGRESS", rowsWritten: totalWritten });
                   vulnRows.length = 0;
-                  
-                  if (typeof global !== 'undefined' && global.gc) {
+
+                  if (typeof global !== "undefined" && global.gc) {
                     global.gc();
                   }
                 }
@@ -124,11 +167,11 @@ const ingest = async () => {
           }
         }
       }
-      
+
       if (totalWritten > 0) {
         post({ type: "PROGRESS", rowsWritten: totalWritten });
       }
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     if (vulnRows.length > 0) {

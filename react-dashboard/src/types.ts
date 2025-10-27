@@ -1,4 +1,5 @@
 export type Severity = "critical" | "high" | "medium" | "low" | "unknown";
+export type KaiStatus = "invalid - norisk" | "ai-invalid-norisk";
 
 export type VulnRow = {
   id: string;
@@ -9,6 +10,7 @@ export type VulnRow = {
   imageVersion?: string;
   cve: string;
   severity: Severity;
+  description?: string;
   cvss?: number;
   status?: string;
   packageName?: string;
@@ -17,6 +19,11 @@ export type VulnRow = {
   publishedAt?: number;
   fixDate?: number;
   riskFactors: string[];
+  kaiStatus: KaiStatus;
+  discoveredAt: number;
+  exploitabilityScore?: number;
+  impactScore?: number;
+  tags: string[];
 };
 
 export type AggSeverity = { severity: Severity | "unknown"; count: number };

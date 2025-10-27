@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { usePreferences } from "../contexts/PreferencesContext";
 import { getThemeStyles } from "../styles/theme";
 import { dataService } from "../services/DataService";
@@ -11,25 +11,29 @@ interface PreferencesSettingsProps {
 
 const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
   const { preferences, updatePreferences, resetPreferences } = usePreferences();
-  const [activeTab, setActiveTab] = useState<
-    "theme" | "accessibility"
-  >("theme");
+  const [activeTab, setActiveTab] = useState<"theme" | "accessibility">(
+    "theme"
+  );
 
   if (!isOpen) return null;
 
   const theme = getThemeStyles(preferences);
 
-  const getTabClassName = (isActive: boolean) => 
-    `tab-button ${isActive ? 'active' : ''}`;
+  const getTabClassName = (isActive: boolean) =>
+    `tab-button ${isActive ? "active" : ""}`;
 
   return (
     <div className="preferences-overlay">
-      <div className="preferences-modal" style={{ backgroundColor: theme.colors.background }}>
+      <div
+        className="preferences-modal"
+        style={{ backgroundColor: theme.colors.background }}
+      >
         {/* Header */}
-        <div className="preferences-header" style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
-          <h2 style={{ color: theme.colors.text }}>
-            ⚙️ Preferences
-          </h2>
+        <div
+          className="preferences-header"
+          style={{ borderBottom: `1px solid ${theme.colors.border}` }}
+        >
+          <h2 style={{ color: theme.colors.text }}>⚙️ Preferences</h2>
           <button
             onClick={onClose}
             className="close-button"
@@ -40,7 +44,13 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
         </div>
 
         {/* Tabs */}
-        <div className="preferences-tabs" style={{ backgroundColor: theme.colors.surface, borderBottom: `1px solid ${theme.colors.border}` }}>
+        <div
+          className="preferences-tabs"
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderBottom: `1px solid ${theme.colors.border}`,
+          }}
+        >
           <button
             className={getTabClassName(activeTab === "theme")}
             onClick={() => setActiveTab("theme")}
@@ -59,9 +69,7 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
         <div className="preferences-content">
           {activeTab === "theme" && (
             <div>
-              <h3 style={{ color: theme.colors.text }}>
-                Theme Settings
-              </h3>
+              <h3 style={{ color: theme.colors.text }}>Theme Settings</h3>
 
               <label className="form-label">Theme Mode</label>
               <select
@@ -80,9 +88,7 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
 
           {activeTab === "accessibility" && (
             <div>
-              <h3 style={{ color: theme.colors.text }}>
-                Accessibility
-              </h3>
+              <h3 style={{ color: theme.colors.text }}>Accessibility</h3>
 
               <label className="form-label">Font Size</label>
               <select
@@ -113,7 +119,10 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
         </div>
 
         {/* Footer */}
-        <div className="preferences-footer" style={{ borderTop: `1px solid ${theme.colors.border}` }}>
+        <div
+          className="preferences-footer"
+          style={{ borderTop: `1px solid ${theme.colors.border}` }}
+        >
           <div className="footer-buttons">
             <button
               onClick={resetPreferences}
@@ -150,10 +159,7 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
               </>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="footer-button done-button"
-          >
+          <button onClick={onClose} className="footer-button done-button">
             Done
           </button>
         </div>

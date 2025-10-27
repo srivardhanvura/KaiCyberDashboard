@@ -6,15 +6,21 @@ export class DashboardDB extends Dexie {
   aggSeverity!: Table<AggSeverity, string>;
 
   constructor() {
-    super("ui-dashboard-db");
-    this.version(2).stores({
+    super("kai-dashboard-db");
+    this.version(3).stores({
       vulns: `
         id,
         severity,
         publishedAt,
         cvss,
+        kaiStatus,
+        description,
+        discoveredAt,
         *riskFactors,
-        [severity+publishedAt]
+        *tags,
+        [severity+publishedAt],
+        [kaiStatus+severity],
+        [discoveredAt+severity]
       `,
       aggSeverity: "severity",
     });

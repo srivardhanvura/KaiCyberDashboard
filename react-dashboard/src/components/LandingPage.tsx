@@ -1,24 +1,21 @@
-import React from "react";
+import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";
 
 interface LandingPageProps {
-  onEnterDashboard: () => void;
   ingestionProgress: number;
   isIngesting: boolean;
   totalRows: number;
 }
 
 const LandingPage = ({
-  onEnterDashboard,
   ingestionProgress,
   isIngesting,
   totalRows,
 }: LandingPageProps) => {
+  const navigate = useNavigate();
   return (
     <div className="landing-page">
-      <h1>
-        🛡️ Vulnerability Dashboard
-      </h1>
+      <h1>Vulnerability Dashboard</h1>
 
       <p className="description">
         Comprehensive security vulnerability analysis and monitoring platform
@@ -28,25 +25,15 @@ const LandingPage = ({
         <h2>Features</h2>
         <div className="features-grid">
           <div className="feature-card">
-            <h3 className="critical-severity">
-              🔴 Critical
-            </h3>
-            <p>
-              High-priority vulnerabilities
-            </p>
+            <h3 className="critical-severity">🔴 Critical</h3>
+            <p>High-priority vulnerabilities</p>
           </div>
           <div className="feature-card">
-            <h3 className="high-severity">
-              🟠 High
-            </h3>
-            <p>
-              Important security issues
-            </p>
+            <h3 className="high-severity">🟠 High</h3>
+            <p>Important security issues</p>
           </div>
           <div className="feature-card">
-            <h3 className="medium-severity">
-              🟡 Medium
-            </h3>
+            <h3 className="medium-severity">🟡 Medium</h3>
             <p>Moderate risk factors</p>
           </div>
           <div className="feature-card">
@@ -58,9 +45,7 @@ const LandingPage = ({
 
       {isIngesting && (
         <div className="loading-container">
-          <h3>
-            📊 Loading Vulnerability Data...
-          </h3>
+          <h3>📊 Loading Vulnerability Data...</h3>
           <div className="progress-container">
             <div className="progress-bar">
               <div
@@ -81,7 +66,7 @@ const LandingPage = ({
       )}
 
       <button
-        onClick={onEnterDashboard}
+        onClick={() => navigate("/dashboard")}
         className="enter-dashboard-btn"
       >
         {isIngesting ? "📊 Enter Dashboard (Loading...)" : "🚀 Enter Dashboard"}
