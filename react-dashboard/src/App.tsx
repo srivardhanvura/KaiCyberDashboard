@@ -13,6 +13,8 @@ import {
 import LandingPage from "./components/LandingPage";
 import DashboardPage from "./components/DashboardPage";
 import VulnerabilitiesPage from "./components/VulnerabilitiesPage";
+import IndividualVulnerabilityPage from "./components/IndividualVulnerabilityPage";
+import VulnerabilityComparisonPage from "./components/VulnerabilityComparisonPage";
 import PreferencesSettings from "./components/PreferencesSettings";
 import AppThemeProvider from "./components/ThemeProvider";
 import NavigationDrawer from "./components/NavigationDrawer";
@@ -172,6 +174,32 @@ const AppContent = ({
                 title="Vulnerabilities"
               />
               <VulnerabilitiesPage />
+            </>
+          }
+        />
+        <Route
+          path="/vulnerability/:id"
+          element={
+            <>
+              <TopNavigation
+                onMenuClick={onToggleDrawer}
+                onSettingsClick={onTogglePreferences}
+                title="Vulnerability Details"
+              />
+              <IndividualVulnerabilityPage />
+            </>
+          }
+        />
+        <Route
+          path="/vulnerability-comparison"
+          element={
+            <>
+              <TopNavigation
+                onMenuClick={onToggleDrawer}
+                onSettingsClick={onTogglePreferences}
+                title="Vulnerability Comparison"
+              />
+              <VulnerabilityComparisonPage />
             </>
           }
         />

@@ -17,6 +17,7 @@ import {
   Home as HomeIcon,
   Dashboard as DashboardIcon,
   List as ListIcon,
+  Compare as CompareIcon,
   Settings as SettingsIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
@@ -51,6 +52,11 @@ const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
       label: "Vulnerabilities",
       icon: <ListIcon />,
       path: "/vulnerabilities",
+    },
+    {
+      label: "Compare Vulnerabilities",
+      icon: <CompareIcon />,
+      path: "/vulnerability-comparison",
     },
   ];
 

@@ -185,7 +185,6 @@ const DashboardPage = ({
         </Box>
       ) : chartData ? (
         <Box display="flex" flexDirection="column" gap={3}>
-          {/* Charts Row 1 */}
           <Box display="flex" flexWrap="wrap" gap={3}>
             <Box flex="1" minWidth="400px">
               <SeverityPieChart data={chartData.severityData} />
@@ -195,7 +194,6 @@ const DashboardPage = ({
             </Box>
           </Box>
 
-          {/* Charts Row 2 */}
           <Box display="flex" flexWrap="wrap" gap={3}>
             <Box flex="1" minWidth="400px">
               <VulnerabilityTrendChart data={chartData.trendData} />

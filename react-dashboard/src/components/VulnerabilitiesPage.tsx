@@ -27,10 +27,12 @@ import {
   ArrowBack as ArrowBackIcon,
   Refresh as RefreshIcon,
   Download as DownloadIcon,
+  Compare as CompareIcon,
 } from "@mui/icons-material";
 import { db } from "../db/db";
 import { VulnRow, Severity, KaiStatus } from "../types";
 import { exportToCSV } from "../utils/csvExport";
+import VulnerabilityDetailPopup from "./VulnerabilityDetailPopup";
 import "./VulnerabilitiesPage.css";
 
 interface VulnerabilitiesPageProps {}
@@ -48,6 +50,8 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
   >("all");
   const [sortBy, setSortBy] = useState<keyof VulnRow>("discoveredAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [selectedVulnId, setSelectedVulnId] = useState<string | null>(null);
 
   useEffect(() => {
     loadVulnerabilities();
@@ -206,6 +210,24 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
     }
   };
 
+  const handleVulnerabilityClick = (vulnId: string) => {
+    setSelectedVulnId(vulnId);
+    setPopupOpen(true);
+  };
+
+  const handleClosePopup = () => {
+    setPopupOpen(false);
+    setSelectedVulnId(null);
+  };
+
+  const handleViewFullDetails = (vulnId: string) => {
+    navigate(`/vulnerability/${vulnId}`);
+  };
+
+  const handleCompareClick = () => {
+    navigate("/vulnerability-comparison");
+  };
+
   return (
     <Box className="vulnerabilities-page">
       <Box className="vulnerabilities-header">
@@ -217,11 +239,11 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
             Vulnerabilities
           </Typography>
           <Box display="flex" gap={1}>
-            {/* <Tooltip title="Export to CSV">
-              <IconButton onClick={handleExportCSV} color="primary">
-                <DownloadIcon />
+            <Tooltip title="Compare Vulnerabilities">
+              <IconButton onClick={handleCompareClick} color="primary">
+                <CompareIcon />
               </IconButton>
-            </Tooltip> */}
+            </Tooltip>
             <Tooltip title="Refresh">
               <IconButton onClick={loadVulnerabilities}>
                 <RefreshIcon />
@@ -356,7 +378,16 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               {paginatedVulnerabilities.map((vuln) => (
                 <TableRow key={vuln.id} hover>
                   <TableCell>
-                    <Typography variant="body2" fontWeight="bold">
+                    <Typography 
+                      variant="body2" 
+                      fontWeight="bold"
+                      sx={{ 
+                        cursor: 'pointer',
+                        color: 'primary.main',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                      onClick={() => handleVulnerabilityClick(vuln.id)}
+                    >
                       {vuln.cve || "N/A"}
                     </Typography>
                   </TableCell>
@@ -455,6 +486,13 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
+
+      <VulnerabilityDetailPopup
+        open={popupOpen}
+        onClose={handleClosePopup}
+        vulnerabilityId={selectedVulnId}
+        onViewFullDetails={handleViewFullDetails}
+      />
     </Box>
   );
 };

@@ -28,7 +28,6 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
         className="preferences-modal"
         style={{ backgroundColor: theme.colors.background }}
       >
-        {/* Header */}
         <div
           className="preferences-header"
           style={{ borderBottom: `1px solid ${theme.colors.border}` }}
@@ -43,7 +42,6 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
           </button>
         </div>
 
-        {/* Tabs */}
         <div
           className="preferences-tabs"
           style={{
@@ -65,7 +63,6 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
           </button>
         </div>
 
-        {/* Content */}
         <div className="preferences-content">
           {activeTab === "theme" && (
             <div>
@@ -118,7 +115,6 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
           )}
         </div>
 
-        {/* Footer */}
         <div
           className="preferences-footer"
           style={{ borderTop: `1px solid ${theme.colors.border}` }}
