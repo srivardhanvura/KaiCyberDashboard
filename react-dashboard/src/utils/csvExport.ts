@@ -42,6 +42,7 @@ export const exportToCSV = (
         `"${vuln.packageVersion || ""}"`,
         `"${vuln.imageName || ""}"`,
         `"${vuln.imageVersion || ""}"`,
+        // Escape quotes in description by doubling them (CSV standard)
         `"${(vuln.description || "").replace(/"/g, '""')}"`,
         vuln.publishedAt
           ? new Date(vuln.publishedAt).toISOString().split("T")[0]
@@ -49,8 +50,8 @@ export const exportToCSV = (
         vuln.discoveredAt
           ? new Date(vuln.discoveredAt).toISOString().split("T")[0]
           : "",
+        // Join risk factors with semicolon for readability
         `"${(vuln.riskFactors || []).join("; ")}"`,
-        `"${(vuln.tags || []).join("; ")}"`,
         `"${vuln.group || ""}"`,
         `"${vuln.repo || ""}"`,
         `"${vuln.imageId || ""}"`,
@@ -61,6 +62,7 @@ export const exportToCSV = (
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
 
+  // Trigger download using browser's download API
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);

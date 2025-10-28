@@ -221,7 +221,9 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
   };
 
   const handleViewFullDetails = (vulnId: string) => {
-    navigate(`/vulnerability/${vulnId}`);
+    // URL encode the vulnerability ID to handle special characters like | and :
+    const encodedId = encodeURIComponent(vulnId);
+    window.open(`/vulnerability/${encodedId}`, "_blank");
   };
 
   const handleCompareClick = () => {
@@ -337,7 +339,7 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               <TableRow>
                 <TableCell
                   onClick={() => handleSort("cve")}
-                  sx={{ cursor: "pointer", fontWeight: "bold"}}
+                  sx={{ cursor: "pointer", fontWeight: "bold" }}
                 >
                   CVE {sortBy === "cve" && (sortOrder === "asc" ? "↑" : "↓")}
                 </TableCell>
@@ -378,13 +380,13 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               {paginatedVulnerabilities.map((vuln) => (
                 <TableRow key={vuln.id} hover>
                   <TableCell>
-                    <Typography 
-                      variant="body2" 
+                    <Typography
+                      variant="body2"
                       fontWeight="bold"
-                      sx={{ 
-                        cursor: 'pointer',
-                        color: 'primary.main',
-                        '&:hover': { textDecoration: 'underline' }
+                      sx={{
+                        cursor: "pointer",
+                        color: "primary.main",
+                        "&:hover": { textDecoration: "underline" },
                       }}
                       onClick={() => handleVulnerabilityClick(vuln.id)}
                     >

@@ -35,6 +35,7 @@ class DataService {
         this.status.progress = 100;
         this.status.error = null;
 
+        // Regenerate aggregates if they're missing (can happen after data corruption)
         if (aggCount === 0) {
           console.log("No aggregates found, regenerating...");
           await this.regenerateAggregates();
@@ -88,6 +89,7 @@ class DataService {
       this.worker.onmessage = (e: MessageEvent<any>) => {
         const msg = e.data;
         if (msg?.type === "PROGRESS") {
+          // Cap progress at 100% and estimate based on expected total rows
           this.status.progress = Math.min(
             (msg.rowsWritten / 237000) * 100,
             100
@@ -157,6 +159,7 @@ class DataService {
       const allVulns = await db.vulns.toArray();
       const sevCounts = new Map<string, number>();
 
+      // Count vulnerabilities by severity for dashboard charts
       allVulns.forEach((vuln) => {
         const severity = vuln.severity;
         sevCounts.set(severity, (sevCounts.get(severity) || 0) + 1);

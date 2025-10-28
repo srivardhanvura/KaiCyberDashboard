@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,13 +13,20 @@ import {
 import LandingPage from "./components/LandingPage";
 import DashboardPage from "./components/DashboardPage";
 import VulnerabilitiesPage from "./components/VulnerabilitiesPage";
-import IndividualVulnerabilityPage from "./components/IndividualVulnerabilityPage";
-import VulnerabilityComparisonPage from "./components/VulnerabilityComparisonPage";
 import PreferencesSettings from "./components/PreferencesSettings";
 import AppThemeProvider from "./components/ThemeProvider";
 import NavigationDrawer from "./components/NavigationDrawer";
 import TopNavigation from "./components/TopNavigation";
 import { getThemeStyles } from "./styles/theme";
+import { CircularProgress, Box } from "@mui/material";
+
+// Lazy load the individual pages
+const IndividualVulnerabilityPage = React.lazy(
+  () => import("./components/IndividualVulnerabilityPage")
+);
+const VulnerabilityComparisonPage = React.lazy(
+  () => import("./components/VulnerabilityComparisonPage")
+);
 
 const App = () => {
   const [showPreferences, setShowPreferences] = React.useState(false);
@@ -184,7 +191,20 @@ const AppContent = ({
                 onSettingsClick={onTogglePreferences}
                 title="Vulnerability Details"
               />
-              <IndividualVulnerabilityPage />
+              <Suspense
+                fallback={
+                  <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    minHeight="400px"
+                  >
+                    <CircularProgress />
+                  </Box>
+                }
+              >
+                <IndividualVulnerabilityPage />
+              </Suspense>
             </>
           }
         />
@@ -197,7 +217,20 @@ const AppContent = ({
                 onSettingsClick={onTogglePreferences}
                 title="Vulnerability Comparison"
               />
-              <VulnerabilityComparisonPage />
+              <Suspense
+                fallback={
+                  <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    minHeight="400px"
+                  >
+                    <CircularProgress />
+                  </Box>
+                }
+              >
+                <VulnerabilityComparisonPage />
+              </Suspense>
             </>
           }
         />

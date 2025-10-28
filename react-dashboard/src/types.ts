@@ -21,9 +21,6 @@ export type VulnRow = {
   riskFactors: string[];
   kaiStatus: KaiStatus;
   discoveredAt: number;
-  exploitabilityScore?: number;
-  impactScore?: number;
-  tags: string[];
 };
 
 export type AggSeverity = { severity: Severity | "unknown"; count: number };

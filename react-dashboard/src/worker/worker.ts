@@ -20,26 +20,12 @@ function post(m: WorkerOut) {
   (self as any).postMessage(m);
 }
 
+// Normalize severity values - sometimes we get weird data from the API
 const sevNorm = (s: any): Severity => {
   const v = (s ?? "unknown").toString().toLowerCase();
   return v === "critical" || v === "high" || v === "medium" || v === "low"
     ? v
     : "unknown";
-};
-
-const getRandomTags = (): string[] => {
-  const allTags = [
-    "production",
-    "staging",
-    "development",
-    "security-critical",
-    "public-facing",
-    "internal",
-    "legacy",
-    "new-feature",
-  ];
-  const numTags = Math.floor(Math.random() * 3) + 1;
-  return allTags.sort(() => 0.5 - Math.random()).slice(0, numTags);
 };
 
 const parseMs = (s?: string) => (s ? Date.parse(s) : undefined);
@@ -79,6 +65,7 @@ const ingest = async () => {
     const jsonData = await res.json();
     console.log("JSON parsed successfully");
 
+    // Process data in batches to avoid memory issues with large datasets
     const BATCH_SIZE = 10000;
     const vulnRows: VulnRow[] = [];
     const sevCounts = new Map<Severity | "unknown", number>();
@@ -87,6 +74,7 @@ const ingest = async () => {
     const groups: any[] = Object.values(jsonData.groups);
     console.log(`Found ${groups.length} groups to process`);
 
+    // Process groups in smaller batches to keep memory usage reasonable
     const GROUP_BATCH_SIZE = 10;
 
     for (
@@ -99,6 +87,7 @@ const ingest = async () => {
         batchStart + GROUP_BATCH_SIZE
       );
 
+      // Nested loops to traverse the data structure: groups -> repos -> images -> vulnerabilities
       for (const group of groupBatch) {
         const repos: any[] = Object.values(group.repos || {});
 
@@ -112,12 +101,14 @@ const ingest = async () => {
                 const fixDate = parseMs(vuln.fixDate);
                 const riskFactors = Object.keys(vuln.riskFactors || {});
                 const imageId = image.id || image.name || "";
+                // Create unique ID by combining image, CVE, package name and version
                 const id = `${imageId}|${vuln.cve || ""}|${
                   vuln.packageName || ""
                 }|${vuln.packageVersion || ""}`;
                 const severity = sevNorm(vuln.severity);
 
                 const now = Date.now();
+                // Use published date if available, otherwise use current time as discovered date
                 const discoveredAt = publishedAt ? publishedAt : now;
 
                 const row: VulnRow = {
@@ -140,18 +131,12 @@ const ingest = async () => {
                   riskFactors,
                   kaiStatus: vuln.kaiStatus || "",
                   discoveredAt: Math.floor(discoveredAt),
-                  exploitabilityScore: vuln.cvss
-                    ? Math.random() * vuln.cvss
-                    : undefined,
-                  impactScore: vuln.cvss
-                    ? vuln.cvss - Math.random() * vuln.cvss * 0.5
-                    : undefined,
-                  tags: getRandomTags(),
                 };
 
                 vulnRows.push(row);
                 sevCounts.set(severity, (sevCounts.get(severity) || 0) + 1);
 
+                // Write to database in batches to avoid memory issues
                 if (vulnRows.length >= BATCH_SIZE) {
                   console.log(
                     `Processing batch of ${
@@ -163,6 +148,7 @@ const ingest = async () => {
                   post({ type: "PROGRESS", rowsWritten: totalWritten });
                   vulnRows.length = 0;
 
+                  // Force garbage collection if available (Node.js environments)
                   if (typeof global !== "undefined" && global.gc) {
                     global.gc();
                   }
@@ -185,6 +171,7 @@ const ingest = async () => {
       post({ type: "PROGRESS", rowsWritten: totalWritten });
     }
 
+    // Store severity counts for dashboard charts
     console.log("Writing severity aggregates...");
     console.log("Severity counts map:", Object.fromEntries(sevCounts));
     await db.transaction("rw", db.aggSeverity, async () => {

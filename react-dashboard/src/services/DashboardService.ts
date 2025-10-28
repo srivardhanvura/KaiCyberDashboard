@@ -33,6 +33,7 @@ class DashboardService {
 
       let query = db.vulns.toCollection();
 
+      // Apply filters to narrow down the dataset
       if (filters.severity !== "all") {
         query = query.filter((vuln) => vuln.severity === filters.severity);
       }
@@ -56,6 +57,7 @@ class DashboardService {
         `Found ${vulnerabilities.length} vulnerabilities for chart data`
       );
 
+      // Process data for different chart types
       const severityData = this.processSeverityData(vulnerabilities);
       const riskFactorsData = this.processRiskFactorsData(vulnerabilities);
       const trendData = this.processTrendData(vulnerabilities);
@@ -94,6 +96,7 @@ class DashboardService {
   ): { factor: string; count: number }[] {
     const factorCounts = new Map<string, number>();
 
+    // Count occurrences of each risk factor across all vulnerabilities
     vulnerabilities.forEach((vuln) => {
       (vuln.riskFactors || []).forEach((factor) => {
         const current = factorCounts.get(factor) || 0;
@@ -101,15 +104,14 @@ class DashboardService {
       });
     });
 
+    // Return top 10 most common risk factors, sorted by count
     return Array.from(factorCounts.entries())
       .map(([factor, count]) => ({ factor, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
   }
 
-  private processTrendData(
-    vulnerabilities: VulnRow[]
-  ): {
+  private processTrendData(vulnerabilities: VulnRow[]): {
     date: string;
     critical: number;
     high: number;
@@ -128,6 +130,7 @@ class DashboardService {
       }
     >();
 
+    // Group vulnerabilities by discovery date and count by severity
     vulnerabilities.forEach((vuln) => {
       const date = new Date(vuln.discoveredAt).toISOString().split("T")[0];
       const existing = dailyCounts.get(date) || {
@@ -141,15 +144,14 @@ class DashboardService {
       dailyCounts.set(date, existing);
     });
 
+    // Return last 30 days of data, sorted chronologically
     return Array.from(dailyCounts.entries())
       .map(([date, counts]) => ({ date, ...counts }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-30);
   }
 
-  private processCVSSData(
-    vulnerabilities: VulnRow[]
-  ): {
+  private processCVSSData(vulnerabilities: VulnRow[]): {
     cvss: number;
     daysSincePublished: number;
     severity: Severity;
@@ -157,6 +159,7 @@ class DashboardService {
   }[] {
     const now = Date.now();
 
+    // Only include vulnerabilities with CVSS scores and published dates
     return vulnerabilities
       .filter((vuln) => vuln.cvss && vuln.publishedAt)
       .map((vuln) => ({
@@ -167,7 +170,7 @@ class DashboardService {
         severity: vuln.severity,
         cve: vuln.cve,
       }))
-      .slice(0, 1000);
+      .slice(0, 1000); // Limit to 1000 points for performance
   }
 
   public async getDashboardStats(): Promise<{
