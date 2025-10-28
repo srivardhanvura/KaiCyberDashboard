@@ -7,7 +7,7 @@ import {
   Legend,
   Tooltip,
 } from "recharts";
-import { Card, CardContent, Typography, Box, useTheme } from "@mui/material";
+import { Card, CardContent, Typography, Box } from "@mui/material";
 import { Severity } from "../../types";
 
 interface SeverityPieChartProps {
@@ -27,7 +27,7 @@ const SeverityPieChart: React.FC<SeverityPieChartProps> = ({
   data,
   title = "Vulnerabilities by Severity",
 }) => {
-  const theme = useTheme();
+  // const theme = useTheme(); // Removed unused variable
 
   const chartData = data.map((item) => ({
     name: item.severity.charAt(0).toUpperCase() + item.severity.slice(1),

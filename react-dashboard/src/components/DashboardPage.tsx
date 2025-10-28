@@ -53,13 +53,7 @@ const DashboardPage = ({
     return () => clearInterval(interval);
   }, [isIngesting]);
 
-  React.useEffect(() => {
-    if (hasData) {
-      loadChartData();
-    }
-  }, [hasData, filters]);
-
-  const loadChartData = async () => {
+  const loadChartData = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -75,7 +69,13 @@ const DashboardPage = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  React.useEffect(() => {
+    if (hasData) {
+      loadChartData();
+    }
+  }, [hasData, loadChartData]);
 
   const handleFilterChange = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
