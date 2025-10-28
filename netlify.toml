@@ -1,7 +1,7 @@
 [build]
   base = "react-dashboard"
-  publish = "react-dashboard/build"
-  command = "cd react-dashboard && npm install && npm run build"
+  publish = "build"
+  command = "npm install && npm run build"
 
 [build.environment]
   NODE_VERSION = "18"
