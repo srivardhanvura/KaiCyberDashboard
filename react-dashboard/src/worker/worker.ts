@@ -1,16 +1,12 @@
 /// <reference lib="webworker" />
 
 import { db } from "../db/db";
-import type {
-  VulnRow,
-  Severity,
-  WorkerIn,
-  WorkerOut,
-} from "../types";
+import type { VulnRow, Severity, WorkerIn, WorkerOut } from "../types";
 
 declare const self: DedicatedWorkerGlobalScope;
 
-const DATA_URL = `${self.location.origin}/data/ui_demo.json`;
+const GITHUB_DOWNLOAD_URL =
+  "https://media.githubusercontent.com/media/chanduusc/Ui-Demo-Data/main/ui_demo.json";
 
 self.onmessage = (e: MessageEvent<WorkerIn>) => {
   if (e.data?.type === "START") {
@@ -58,16 +54,27 @@ const ingest = async () => {
     });
     console.log("Cleared existing data");
 
-    const res = await fetch(DATA_URL, {
+    let res: Response;
+
+    console.log("Using GitHub download URL for regular file");
+    const downloadResponse = await fetch(GITHUB_DOWNLOAD_URL, {
       cache: "no-store",
       redirect: "follow",
+      mode: "cors",
+      headers: {
+        Accept: "application/json",
+      },
     });
-    if (!res.ok) {
+
+    if (!downloadResponse.ok) {
       throw new Error(
-        `Failed to fetch data: ${DATA_URL} (${res.status} ${res.statusText})`
+        `Download failed: ${downloadResponse.status} ${downloadResponse.statusText}`
       );
     }
-    console.log("Data fetch initiated, starting streaming...");
+
+    res = downloadResponse;
+
+    console.log("Data fetch initiated from GitHub API");
 
     const jsonData = await res.json();
     console.log("JSON parsed successfully");
@@ -111,9 +118,7 @@ const ingest = async () => {
                 const severity = sevNorm(vuln.severity);
 
                 const now = Date.now();
-                const discoveredAt = publishedAt
-                  ? publishedAt
-                  : now;
+                const discoveredAt = publishedAt ? publishedAt : now;
 
                 const row: VulnRow = {
                   id,

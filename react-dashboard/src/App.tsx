@@ -20,8 +20,6 @@ import AppThemeProvider from "./components/ThemeProvider";
 import NavigationDrawer from "./components/NavigationDrawer";
 import TopNavigation from "./components/TopNavigation";
 import { getThemeStyles } from "./styles/theme";
-// remove this
-// import "./utils/clearDatabase";
 
 const App = () => {
   const [showPreferences, setShowPreferences] = React.useState(false);
