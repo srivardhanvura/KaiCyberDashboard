@@ -62,7 +62,7 @@ class DataService {
     }
   }
 
-  public startIngestion(): void {
+  public startIngestion(preferRemote = false): void {
     if (this.status.isIngesting) {
       console.log("Ingestion already in progress");
       return;
@@ -89,7 +89,7 @@ class DataService {
         const msg = e.data;
         if (msg?.type === "PROGRESS") {
           this.status.progress = Math.min(
-            (msg.rowsWritten / 250000) * 100,
+            (msg.rowsWritten / 237000) * 100,
             100
           );
           this.status.totalRows = msg.rowsWritten;
@@ -116,7 +116,7 @@ class DataService {
         this.cleanup();
       };
 
-      this.worker.postMessage({ type: "START" });
+      this.worker.postMessage({ type: "START", preferRemote });
     } catch (error) {
       console.error("Failed to create worker:", error);
       this.status.isIngesting = false;
