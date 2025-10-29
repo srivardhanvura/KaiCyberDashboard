@@ -3,7 +3,7 @@
 A comprehensive vulnerability analysis platform for cybersecurity professionals. This dashboard provides advanced visualization, comparison, and detailed analysis of security vulnerabilities with real-time data fetching from remote sources.
 
 
-**Hosted on:** https://690020e981511d000820f5d2--heroic-gingersnap-5e18f5.netlify.app/
+**Hosted on:** https://vulnerability-dashboard.netlify.app/landing
 
 ## Features
 
