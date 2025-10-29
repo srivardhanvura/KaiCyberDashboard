@@ -25,11 +25,12 @@ class DataService {
     try {
       const count = await db.vulns.count();
       const aggCount = await db.aggSeverity.count();
+      const MIN_REQUIRED_ROWS = 200000;
       console.log(
         `Found ${count} existing vulnerabilities and ${aggCount} aggregate records in database`
       );
 
-      if (count > 0) {
+      if (count >= MIN_REQUIRED_ROWS) {
         this.status.totalRows = count;
         this.status.isIngesting = false;
         this.status.progress = 100;
@@ -42,10 +43,20 @@ class DataService {
         }
 
         this.notifyListeners();
-        console.log("Data already exists, skipping ingestion");
+        console.log("Sufficient data present, skipping ingestion");
       } else {
-        console.log("No existing data found; starting ingestion immediately");
-        // Start ingestion immediately when no data is present
+        if (count > 0) {
+          console.log(
+            `Existing data is insufficient (< ${MIN_REQUIRED_ROWS}). Clearing and re-ingesting...`
+          );
+          await db.transaction("rw", db.vulns, db.aggSeverity, async () => {
+            await db.vulns.clear();
+            await db.aggSeverity.clear();
+          });
+        } else {
+          console.log("No existing data found; starting ingestion immediately");
+        }
+        // Start ingestion when data is missing or insufficient
         this.startIngestion();
       }
     } catch (error) {
