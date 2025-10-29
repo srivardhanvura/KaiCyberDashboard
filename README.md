@@ -15,6 +15,8 @@ A comprehensive vulnerability analysis platform for cybersecurity professionals.
 - **Responsive Design**: Works seamlessly across desktop, tablet, and mobile devices
 - **Data Export**: CSV export functionality for vulnerability data
 
+> **_NOTE:_**  **When a user opens the website for the first time, the data is ingested into IndexedDB. This process happens in the background while the user can continue using the website,  viewing dashboards, searching for vulnerabilities, and comparing them. Once the ingestion is complete, the dashboards are automatically refreshed, and the user will see the updated data. While the ingestion is still in progress, the user can manually refresh the dashboards to view the latest available data.**
+
 ## Technology Stack
 
 - **Frontend**: React 18 with TypeScript
