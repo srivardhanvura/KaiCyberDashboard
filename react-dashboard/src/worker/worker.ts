@@ -20,7 +20,6 @@ function post(m: WorkerOut) {
   (self as any).postMessage(m);
 }
 
-// Normalize severity values - sometimes we get weird data from the API
 const sevNorm = (s: any): Severity => {
   const v = (s ?? "unknown").toString().toLowerCase();
   return v === "critical" || v === "high" || v === "medium" || v === "low"
@@ -66,7 +65,7 @@ const ingest = async () => {
     console.log("JSON parsed successfully");
 
     // Process data in batches to avoid memory issues with large datasets
-    const BATCH_SIZE = 25000;
+    const BATCH_SIZE = 500;
     const vulnRows: VulnRow[] = [];
     const sevCounts = new Map<Severity | "unknown", number>();
     let totalWritten = 0;
@@ -75,7 +74,7 @@ const ingest = async () => {
     console.log(`Found ${groups.length} groups to process`);
 
     // Process groups in smaller batches to keep memory usage reasonable
-    const GROUP_BATCH_SIZE = 10;
+    const GROUP_BATCH_SIZE = 3;
 
     for (
       let batchStart = 0;
@@ -108,7 +107,6 @@ const ingest = async () => {
                 const severity = sevNorm(vuln.severity);
 
                 const now = Date.now();
-                // Use published date if available, otherwise use current time as discovered date
                 const discoveredAt = publishedAt ? publishedAt : now;
 
                 const row: VulnRow = {
@@ -148,7 +146,6 @@ const ingest = async () => {
                   post({ type: "PROGRESS", rowsWritten: totalWritten });
                   vulnRows.length = 0;
 
-                  // Force garbage collection if available (Node.js environments)
                   if (typeof global !== "undefined" && global.gc) {
                     global.gc();
                   }

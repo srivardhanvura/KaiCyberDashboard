@@ -20,6 +20,10 @@ import {
   IconButton,
   Tooltip,
   Button,
+  ButtonGroup,
+  Autocomplete,
+  Skeleton,
+  Grow,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -28,6 +32,7 @@ import {
   Refresh as RefreshIcon,
   Download as DownloadIcon,
   Compare as CompareIcon,
+  SmartToy as AIIcon,
 } from "@mui/icons-material";
 import { db } from "../db/db";
 import { VulnRow, Severity, KaiStatus } from "../types";
@@ -85,10 +90,10 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
       const matchesAnalysis = (() => {
         if (analysisFilter === "all") return true;
         if (analysisFilter === "analysis") {
-          return (vuln.kaiStatus || "new") === "invalid - norisk";
+          return (vuln.kaiStatus || "new") !== "invalid - norisk";
         }
         if (analysisFilter === "ai-analysis") {
-          return (vuln.kaiStatus || "new") === "ai-invalid-norisk";
+          return (vuln.kaiStatus || "new") !== "ai-invalid-norisk";
         }
         return true;
       })();
@@ -118,6 +123,27 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
     sortBy,
     sortOrder,
   ]);
+
+  // Precompute unique CVE list for fast suggestions
+  const allCves = useMemo(() => {
+    const unique = new Set<string>();
+    for (const v of vulnerabilities) {
+      if (v.cve) unique.add(v.cve);
+    }
+    return Array.from(unique);
+  }, [vulnerabilities]);
+
+  // Build suggestion list for autocomplete from CVEs
+  const searchSuggestions = useMemo(() => {
+    const lower = searchTerm.toLowerCase();
+    const sorted = [...allCves].sort((a, b) => {
+      const aStarts = a.toLowerCase().startsWith(lower) ? 0 : 1;
+      const bStarts = b.toLowerCase().startsWith(lower) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.localeCompare(b);
+    });
+    return sorted.slice(0, 50);
+  }, [allCves, searchTerm]);
 
   const paginatedVulnerabilities = useMemo(() => {
     const start = page * rowsPerPage;
@@ -183,32 +209,56 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-      >
-        <Typography>Loading vulnerabilities...</Typography>
+      <Box className="vulnerabilities-page">
+        <Box className="vulnerabilities-header" mb={2}>
+          <Skeleton variant="text" width={240} height={40} />
+          <Box display="flex" gap={2} mt={1}>
+            <Skeleton variant="rounded" width={320} height={40} />
+            <Skeleton variant="rounded" width={150} height={40} />
+            <Skeleton variant="rounded" width={280} height={40} />
+          </Box>
+        </Box>
+        <Paper>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  {[
+                    "CVE",
+                    "Severity",
+                    "Kai Status",
+                    "Package",
+                    "Image",
+                    "CVSS",
+                    "Discovered",
+                    "Risk Factors",
+                  ].map((col) => (
+                    <TableCell key={col}>
+                      <Skeleton variant="text" width={100} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i} hover>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton
+                          variant="text"
+                          width={`${60 + ((j * 5) % 30)}%`}
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
       </Box>
     );
   }
-
-  const handleAnalysisChange = (analysisStatus: string) => {
-    if (analysisStatus === "analysis") {
-      if (analysisFilter === "analysis") {
-        setAnalysisFilter("all");
-      } else {
-        setAnalysisFilter("analysis");
-      }
-    } else {
-      if (analysisFilter === "ai-analysis") {
-        setAnalysisFilter("all");
-      } else {
-        setAnalysisFilter("ai-analysis");
-      }
-    }
-  };
 
   const handleVulnerabilityClick = (vulnId: string) => {
     setSelectedVulnId(vulnId);
@@ -256,16 +306,27 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
 
         <Box display="flex" flexWrap="wrap" gap={2} mb={3}>
           <Box flex="1" minWidth="200px">
-            <TextField
-              fullWidth
-              label="Search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <SearchIcon sx={{ mr: 1, color: "text.secondary" }} />
-                ),
+            <Autocomplete
+              freeSolo
+              options={searchSuggestions}
+              inputValue={searchTerm}
+              onInputChange={(_, value) => setSearchTerm(value)}
+              onChange={(_, value) => {
+                if (typeof value === "string") setSearchTerm(value);
               }}
+              filterSelectedOptions
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <SearchIcon sx={{ mr: 1, color: "text.secondary" }} />
+                    ),
+                  }}
+                />
+              )}
             />
           </Box>
           <Box minWidth="150px">
@@ -285,39 +346,99 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               </Select>
             </FormControl>
           </Box>
-          <Box display="flex" gap={1}>
-            <Button
-              variant={analysisFilter === "all" ? "contained" : "outlined"}
-              onClick={() => setAnalysisFilter("all")}
-              size="small"
-            >
-              All
-            </Button>
-            <Button
-              variant={analysisFilter === "analysis" ? "contained" : "outlined"}
-              onClick={() => handleAnalysisChange("analysis")}
-              size="small"
-              color="primary"
-            >
-              Analysis
-            </Button>
-            <Button
-              variant={
-                analysisFilter === "ai-analysis" ? "contained" : "outlined"
-              }
-              onClick={() => handleAnalysisChange("ai-analysis")}
-              size="small"
-              color="primary"
-            >
-              AI Analysis
-            </Button>
+          <Box
+            display="flex"
+            flexDirection="column"
+            gap={1}
+            alignItems="flex-start"
+          >
+            <Typography variant="subtitle2" color="text.secondary"></Typography>
+            <ButtonGroup variant="outlined" aria-label="analysis actions">
+              <Button
+                startIcon={<SearchIcon />}
+                onClick={() => setAnalysisFilter("analysis")}
+                variant={
+                  analysisFilter === "analysis" ? "contained" : "outlined"
+                }
+                color="primary"
+                sx={{
+                  minWidth: 160,
+                  textTransform: "none",
+                  fontWeight: analysisFilter === "analysis" ? 600 : 400,
+                }}
+              >
+                Manual Analysis
+                <Chip
+                  label={`Exclude "invalid - norisk"`}
+                  size="small"
+                  sx={{ ml: 1, fontSize: "0.7rem" }}
+                  color={analysisFilter === "analysis" ? "primary" : "default"}
+                  variant={
+                    analysisFilter === "analysis" ? "filled" : "outlined"
+                  }
+                />
+              </Button>
+              <Button
+                startIcon={<AIIcon />}
+                onClick={() => setAnalysisFilter("ai-analysis")}
+                variant={
+                  analysisFilter === "ai-analysis" ? "contained" : "outlined"
+                }
+                color="secondary"
+                sx={{
+                  minWidth: 160,
+                  textTransform: "none",
+                  fontWeight: analysisFilter === "ai-analysis" ? 600 : 400,
+                }}
+              >
+                AI Analysis
+                <Chip
+                  label={`Exclude "ai-invalid-norisk"`}
+                  size="small"
+                  sx={{ ml: 1, fontSize: "0.7rem" }}
+                  color={
+                    analysisFilter === "ai-analysis" ? "secondary" : "default"
+                  }
+                  variant={
+                    analysisFilter === "ai-analysis" ? "filled" : "outlined"
+                  }
+                />
+              </Button>
+              <Button
+                onClick={() => setAnalysisFilter("all")}
+                variant={analysisFilter === "all" ? "contained" : "outlined"}
+                color="inherit"
+                sx={{
+                  minWidth: 120,
+                  textTransform: "none",
+                  fontWeight: analysisFilter === "all" ? 600 : 400,
+                }}
+              >
+                Show All
+              </Button>
+            </ButtonGroup>
           </Box>
           <Box display="flex" alignItems="center" gap={2}>
             <Box display="flex" alignItems="center" gap={1}>
               <FilterIcon />
               <Typography variant="body2">
-                {filteredAndSortedVulnerabilities.length} vulnerabilities found
+                Showing{" "}
+                {filteredAndSortedVulnerabilities.length.toLocaleString()} of{" "}
+                {vulnerabilities.length.toLocaleString()} vulnerabilities
               </Typography>
+              {analysisFilter !== "all" && (
+                <Chip
+                  label={`${(
+                    ((vulnerabilities.length -
+                      filteredAndSortedVulnerabilities.length) /
+                      vulnerabilities.length) *
+                    100
+                  ).toFixed(1)}% filtered out`}
+                  color="warning"
+                  size="small"
+                  variant="outlined"
+                />
+              )}
             </Box>
             <Tooltip title="Export filtered results to CSV">
               <IconButton
@@ -334,7 +455,11 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
 
       <Paper>
         <TableContainer>
-          <Table>
+          <Table
+            sx={{
+              transition: "opacity 200ms ease",
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell
@@ -377,103 +502,127 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedVulnerabilities.map((vuln) => (
-                <TableRow key={vuln.id} hover>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      fontWeight="bold"
-                      sx={{
-                        cursor: "pointer",
-                        color: "primary.main",
-                        "&:hover": { textDecoration: "underline" },
-                      }}
-                      onClick={() => handleVulnerabilityClick(vuln.id)}
-                    >
-                      {vuln.cve || "N/A"}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={vuln.severity}
-                      size="small"
-                      sx={{
-                        backgroundColor: getSeverityColor(vuln.severity),
-                        color: "white",
-                        fontWeight: "bold",
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={
-                        vuln.kaiStatus
-                          ? vuln.kaiStatus.replace("_", " ")
-                          : "Unknown"
-                      }
-                      size="small"
-                      sx={{
-                        backgroundColor: getKaiStatusColor(
-                          vuln.kaiStatus || "new"
-                        ),
-                        color: "white",
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {vuln.packageName || "N/A"}
-                    </Typography>
-                    {vuln.packageVersion && (
-                      <Typography variant="caption" color="text.secondary">
-                        v{vuln.packageVersion}
+              {paginatedVulnerabilities.map((vuln, index) => (
+                <Grow in timeout={200 + (index % 10) * 40} key={vuln.id}>
+                  <TableRow
+                    hover
+                    sx={{
+                      transition: "background-color 160ms ease",
+                      "&:hover": { backgroundColor: "action.hover" },
+                    }}
+                  >
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        sx={{
+                          cursor: "pointer",
+                          color: "primary.main",
+                          transition:
+                            "color 160ms ease, text-decoration-color 160ms ease",
+                          "&:hover": { textDecoration: "underline" },
+                        }}
+                        onClick={() => handleVulnerabilityClick(vuln.id)}
+                      >
+                        {vuln.cve || "N/A"}
                       </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {vuln.imageName || "N/A"}
-                    </Typography>
-                    {vuln.imageVersion && (
-                      <Typography variant="caption" color="text.secondary">
-                        {vuln.imageVersion}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={vuln.severity}
+                        size="small"
+                        sx={{
+                          backgroundColor: getSeverityColor(vuln.severity),
+                          color: "white",
+                          fontWeight: "bold",
+                          transition: "transform 120ms ease",
+                          "&:hover": { transform: "translateY(-1px)" },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={
+                          vuln.kaiStatus
+                            ? vuln.kaiStatus.replace("_", " ")
+                            : "Unknown"
+                        }
+                        size="small"
+                        sx={{
+                          backgroundColor: getKaiStatusColor(
+                            vuln.kaiStatus || "new"
+                          ),
+                          color: "white",
+                          transition: "transform 120ms ease",
+                          "&:hover": { transform: "translateY(-1px)" },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {vuln.packageName || "N/A"}
                       </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {vuln.cvss ? vuln.cvss.toFixed(1) : "N/A"}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {vuln.discoveredAt
-                        ? formatDate(vuln.discoveredAt)
-                        : "N/A"}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box display="flex" flexWrap="wrap" gap={0.5}>
-                      {(vuln.riskFactors || [])
-                        .slice(0, 2)
-                        .map((factor, index) => (
+                      {vuln.packageVersion && (
+                        <Typography variant="caption" color="text.secondary">
+                          v{vuln.packageVersion}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {vuln.imageName || "N/A"}
+                      </Typography>
+                      {vuln.imageVersion && (
+                        <Typography variant="caption" color="text.secondary">
+                          {vuln.imageVersion}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {vuln.cvss ? vuln.cvss.toFixed(1) : "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {vuln.discoveredAt
+                          ? formatDate(vuln.discoveredAt)
+                          : "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box display="flex" flexWrap="wrap" gap={0.5}>
+                        {(vuln.riskFactors || [])
+                          .slice(0, 2)
+                          .map((factor, index) => (
+                            <Chip
+                              key={index}
+                              label={factor}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                transition:
+                                  "transform 120ms ease, background-color 160ms ease",
+                                "&:hover": { transform: "translateY(-1px)" },
+                              }}
+                            />
+                          ))}
+                        {(vuln.riskFactors || []).length > 2 && (
                           <Chip
-                            key={index}
-                            label={factor}
+                            label={`+${(vuln.riskFactors || []).length - 2}`}
                             size="small"
                             variant="outlined"
+                            sx={{
+                              transition:
+                                "transform 120ms ease, background-color 160ms ease",
+                              "&:hover": { transform: "translateY(-1px)" },
+                            }}
                           />
-                        ))}
-                      {(vuln.riskFactors || []).length > 2 && (
-                        <Chip
-                          label={`+${(vuln.riskFactors || []).length - 2}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
+                        )}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                </Grow>
               ))}
             </TableBody>
           </Table>

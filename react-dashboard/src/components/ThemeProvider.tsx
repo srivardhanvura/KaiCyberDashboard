@@ -51,6 +51,20 @@ const AppThemeProvider: React.FC<AppThemeProviderProps> = ({ children }) => {
       },
     },
     typography: {
+      fontFamily: [
+        "Plus Jakarta Sans",
+        "Inter",
+        "Inter var",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "Noto Sans",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+      ].join(","),
       fontSize:
         preferences.fontSize === "small"
           ? 14
@@ -59,6 +73,16 @@ const AppThemeProvider: React.FC<AppThemeProviderProps> = ({ children }) => {
           : 16,
     },
     components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          "html, body, #root": {
+            fontFamily:
+              'Plus Jakarta Sans, Inter, Inter var, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"',
+            WebkitFontSmoothing: "antialiased",
+            MozOsxFontSmoothing: "grayscale",
+          },
+        },
+      },
       MuiCard: {
         styleOverrides: {
           root: {

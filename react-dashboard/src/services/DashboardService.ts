@@ -24,6 +24,9 @@ export interface DashboardFilters {
   severity: Severity | "all";
   kaiStatus: KaiStatus | "all";
   dateRange: { start: string; end: string };
+  group?: string;
+  repo?: string;
+  analysisMode?: "all" | "analysis" | "ai-analysis";
 }
 
 class DashboardService {
@@ -33,13 +36,21 @@ class DashboardService {
 
       let query = db.vulns.toCollection();
 
-      // Apply filters to narrow down the dataset
       if (filters.severity !== "all") {
         query = query.filter((vuln) => vuln.severity === filters.severity);
       }
 
       if (filters.kaiStatus !== "all") {
         query = query.filter((vuln) => vuln.kaiStatus === filters.kaiStatus);
+      }
+
+      // Apply analysis mode filtering
+      if (filters.analysisMode === "analysis") {
+        // Exclude vulnerabilities with kaiStatus "invalid - norisk"
+        query = query.filter((vuln) => vuln.kaiStatus !== "invalid - norisk");
+      } else if (filters.analysisMode === "ai-analysis") {
+        // Exclude vulnerabilities with kaiStatus "ai-invalid-norisk"
+        query = query.filter((vuln) => vuln.kaiStatus !== "ai-invalid-norisk");
       }
 
       if (filters.dateRange.start) {
@@ -57,7 +68,6 @@ class DashboardService {
         `Found ${vulnerabilities.length} vulnerabilities for chart data`
       );
 
-      // Process data for different chart types
       const severityData = this.processSeverityData(vulnerabilities);
       const riskFactorsData = this.processRiskFactorsData(vulnerabilities);
       const trendData = this.processTrendData(vulnerabilities);
@@ -171,6 +181,45 @@ class DashboardService {
         cve: vuln.cve,
       }))
       .slice(0, 1000); // Limit to 1000 points for performance
+  }
+
+  public async getFilteredCount(filters: DashboardFilters): Promise<number> {
+    try {
+      let query = db.vulns.toCollection();
+
+      // Apply filters to narrow down the dataset
+      if (filters.severity !== "all") {
+        query = query.filter((vuln) => vuln.severity === filters.severity);
+      }
+
+      if (filters.kaiStatus !== "all") {
+        query = query.filter((vuln) => vuln.kaiStatus === filters.kaiStatus);
+      }
+
+      // Apply analysis mode filtering
+      if (filters.analysisMode === "analysis") {
+        // Exclude vulnerabilities with kaiStatus "invalid - norisk"
+        query = query.filter((vuln) => vuln.kaiStatus !== "invalid - norisk");
+      } else if (filters.analysisMode === "ai-analysis") {
+        // Exclude vulnerabilities with kaiStatus "ai-invalid-norisk"
+        query = query.filter((vuln) => vuln.kaiStatus !== "ai-invalid-norisk");
+      }
+
+      if (filters.dateRange.start) {
+        const startDate = new Date();
+        startDate.setDate(
+          startDate.getDate() - parseInt(filters.dateRange.start)
+        );
+        query = query.filter(
+          (vuln) => vuln.discoveredAt >= startDate.getTime()
+        );
+      }
+
+      return await query.count();
+    } catch (error) {
+      console.error("Error getting filtered count:", error);
+      throw error;
+    }
   }
 
   public async getDashboardStats(): Promise<{

@@ -10,8 +10,13 @@ import {
   MenuItem,
   Chip,
   Button,
+  ButtonGroup,
 } from "@mui/material";
-import { Clear as ClearIcon } from "@mui/icons-material";
+import {
+  Clear as ClearIcon,
+  Search as SearchIcon,
+  SmartToy as AIIcon,
+} from "@mui/icons-material";
 import { Severity, KaiStatus } from "../types";
 
 interface DashboardFiltersProps {
@@ -22,6 +27,10 @@ interface DashboardFiltersProps {
   onKaiStatusChange: (status: KaiStatus | "all") => void;
   onDateRangeChange: (range: { start: string; end: string }) => void;
   onClearFilters: () => void;
+  onAnalysisModeChange: (mode: "all" | "analysis" | "ai-analysis") => void;
+  analysisMode: "all" | "analysis" | "ai-analysis";
+  totalCount: number;
+  filteredCount: number;
 }
 
 const DashboardFilters: React.FC<DashboardFiltersProps> = ({
@@ -32,6 +41,10 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   onKaiStatusChange,
   onDateRangeChange,
   onClearFilters,
+  onAnalysisModeChange,
+  analysisMode,
+  totalCount,
+  filteredCount,
 }) => {
   const activeFiltersCount = [
     severityFilter !== "all",
@@ -119,6 +132,88 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                 <MenuItem value="365">Last year</MenuItem>
               </Select>
             </FormControl>
+          </Box>
+        </Box>
+
+        {/* Analysis Action Buttons */}
+        <Box mt={3}>
+          <Typography variant="subtitle2" gutterBottom color="text.secondary">
+            Analysis Actions
+          </Typography>
+          <ButtonGroup variant="outlined" aria-label="analysis actions">
+            <Button
+              startIcon={<SearchIcon />}
+              onClick={() => onAnalysisModeChange("analysis")}
+              variant={analysisMode === "analysis" ? "contained" : "outlined"}
+              color="primary"
+              sx={{
+                minWidth: 160,
+                textTransform: "none",
+                fontWeight: analysisMode === "analysis" ? 600 : 400,
+              }}
+            >
+              Manual Analysis
+              <Chip
+                label={`Exclude "invalid - norisk"`}
+                size="small"
+                sx={{ ml: 1, fontSize: "0.7rem" }}
+                color={analysisMode === "analysis" ? "primary" : "default"}
+                variant={analysisMode === "analysis" ? "filled" : "outlined"}
+              />
+            </Button>
+            <Button
+              startIcon={<AIIcon />}
+              onClick={() => onAnalysisModeChange("ai-analysis")}
+              variant={
+                analysisMode === "ai-analysis" ? "contained" : "outlined"
+              }
+              color="secondary"
+              sx={{
+                minWidth: 160,
+                textTransform: "none",
+                fontWeight: analysisMode === "ai-analysis" ? 600 : 400,
+              }}
+            >
+              AI Analysis
+              <Chip
+                label={`Exclude "ai-invalid-norisk"`}
+                size="small"
+                sx={{ ml: 1, fontSize: "0.7rem" }}
+                color={analysisMode === "ai-analysis" ? "secondary" : "default"}
+                variant={analysisMode === "ai-analysis" ? "filled" : "outlined"}
+              />
+            </Button>
+            <Button
+              onClick={() => onAnalysisModeChange("all")}
+              variant={analysisMode === "all" ? "contained" : "outlined"}
+              color="inherit"
+              sx={{
+                minWidth: 120,
+                textTransform: "none",
+                fontWeight: analysisMode === "all" ? 600 : 400,
+              }}
+            >
+              Show All
+            </Button>
+          </ButtonGroup>
+
+          {/* Filter Impact Display */}
+          <Box mt={2} display="flex" alignItems="center" gap={2}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {filteredCount.toLocaleString()} of{" "}
+              {totalCount.toLocaleString()} vulnerabilities
+            </Typography>
+            {analysisMode !== "all" && (
+              <Chip
+                label={`${(
+                  ((totalCount - filteredCount) / totalCount) *
+                  100
+                ).toFixed(1)}% filtered out`}
+                color="warning"
+                size="small"
+                variant="outlined"
+              />
+            )}
           </Box>
         </Box>
       </CardContent>

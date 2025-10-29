@@ -1,5 +1,13 @@
 import React from "react";
-import { Box, Typography, CircularProgress, Alert } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Alert,
+  Skeleton,
+  Grow,
+  Fade,
+  Paper,
+} from "@mui/material";
 import { db } from "../db/db";
 import DashboardFilters from "./DashboardFilters";
 import SeverityPieChart from "./charts/SeverityPieChart";
@@ -29,6 +37,9 @@ const DashboardPage = ({
   const [chartData, setChartData] = React.useState<ChartData | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [analysisMode, setAnalysisMode] = React.useState<
+    "all" | "analysis" | "ai-analysis"
+  >("all");
   const [filters, setFilters] = React.useState<FilterState>({
     severity: "all",
     kaiStatus: "all",
@@ -58,7 +69,10 @@ const DashboardPage = ({
       setLoading(true);
       setError(null);
       console.log("Loading chart data...");
-      const data = await dashboardService.getChartData(filters);
+
+      const effectiveFilters = { ...filters, analysisMode };
+
+      const data = await dashboardService.getChartData(effectiveFilters);
       console.log("Chart data loaded successfully:", data);
       setChartData(data);
     } catch (err) {
@@ -69,7 +83,7 @@ const DashboardPage = ({
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, analysisMode]);
 
   React.useEffect(() => {
     if (hasData) {
@@ -87,7 +101,36 @@ const DashboardPage = ({
       kaiStatus: "all",
       dateRange: { start: "", end: "" },
     });
+    setAnalysisMode("all");
   };
+
+  const handleAnalysisModeChange = (
+    mode: "all" | "analysis" | "ai-analysis"
+  ) => {
+    setAnalysisMode(mode);
+  };
+
+  const getFilteredCount = React.useCallback(async () => {
+    if (!hasData) return dataCount;
+
+    try {
+      const effectiveFilters = { ...filters, analysisMode };
+
+      const count = await dashboardService.getFilteredCount(effectiveFilters);
+      return count;
+    } catch (error) {
+      console.error("Error getting filtered count:", error);
+      return dataCount;
+    }
+  }, [hasData, dataCount, filters, analysisMode]);
+
+  const [filteredCount, setFilteredCount] = React.useState(dataCount);
+
+  React.useEffect(() => {
+    if (hasData) {
+      getFilteredCount().then(setFilteredCount);
+    }
+  }, [hasData, getFilteredCount]);
 
   if (isIngesting && !hasData) {
     return (
@@ -139,15 +182,19 @@ const DashboardPage = ({
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header">
-        <div className="dashboard-title-container">
-          <h1 className="dashboard-title">Vulnerability Dashboard</h1>
+      <Fade in timeout={250}>
+        <div className="dashboard-header">
+          <div className="dashboard-title-container">
+            <h1 className="dashboard-title">Vulnerability Dashboard</h1>
+          </div>
+          <div className="dashboard-stats">
+            <p className="dashboard-stats-label">Total Vulnerabilities</p>
+            <p className="dashboard-stats-value">
+              {dataCount.toLocaleString()}
+            </p>
+          </div>
         </div>
-        <div className="dashboard-stats">
-          <p className="dashboard-stats-label">Total Vulnerabilities</p>
-          <p className="dashboard-stats-value">{dataCount.toLocaleString()}</p>
-        </div>
-      </div>
+      </Fade>
 
       {isIngesting && (
         <div className="ingestion-notice">
@@ -166,6 +213,10 @@ const DashboardPage = ({
         onKaiStatusChange={(kaiStatus) => handleFilterChange({ kaiStatus })}
         onDateRangeChange={(dateRange) => handleFilterChange({ dateRange })}
         onClearFilters={handleClearFilters}
+        onAnalysisModeChange={handleAnalysisModeChange}
+        analysisMode={analysisMode}
+        totalCount={dataCount}
+        filteredCount={filteredCount}
       />
 
       {error && (
@@ -175,32 +226,90 @@ const DashboardPage = ({
       )}
 
       {loading ? (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          minHeight="400px"
-        >
-          <CircularProgress />
+        <Box display="flex" flexDirection="column" gap={3}>
+          <Box display="flex" flexWrap="wrap" gap={3}>
+            <Paper sx={{ p: 2, flex: 1, minWidth: "400px" }} elevation={1}>
+              <Skeleton variant="text" width={160} height={28} />
+              <Skeleton variant="rounded" height={260} sx={{ mt: 1 }} />
+            </Paper>
+            <Paper sx={{ p: 2, flex: 1, minWidth: "400px" }} elevation={1}>
+              <Skeleton variant="text" width={180} height={28} />
+              <Skeleton variant="rounded" height={260} sx={{ mt: 1 }} />
+            </Paper>
+          </Box>
+          <Box display="flex" flexWrap="wrap" gap={3}>
+            <Paper sx={{ p: 2, flex: 1, minWidth: "400px" }} elevation={1}>
+              <Skeleton variant="text" width={200} height={28} />
+              <Skeleton variant="rounded" height={260} sx={{ mt: 1 }} />
+            </Paper>
+            <Paper sx={{ p: 2, flex: 1, minWidth: "400px" }} elevation={1}>
+              <Skeleton variant="text" width={180} height={28} />
+              <Skeleton variant="rounded" height={260} sx={{ mt: 1 }} />
+            </Paper>
+          </Box>
         </Box>
       ) : chartData ? (
         <Box display="flex" flexDirection="column" gap={3}>
           <Box display="flex" flexWrap="wrap" gap={3}>
-            <Box flex="1" minWidth="400px">
-              <SeverityPieChart data={chartData.severityData} />
-            </Box>
-            <Box flex="1" minWidth="400px">
-              <RiskFactorsBarChart data={chartData.riskFactorsData} />
-            </Box>
+            <Grow in timeout={220}>
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: "400px",
+                  transition: "transform 160ms ease, box-shadow 160ms ease",
+                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                }}
+              >
+                <SeverityPieChart data={chartData.severityData} />
+              </Paper>
+            </Grow>
+            <Grow in timeout={260}>
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: "400px",
+                  transition: "transform 160ms ease, box-shadow 160ms ease",
+                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                }}
+              >
+                <RiskFactorsBarChart data={chartData.riskFactorsData} />
+              </Paper>
+            </Grow>
           </Box>
 
           <Box display="flex" flexWrap="wrap" gap={3}>
-            <Box flex="1" minWidth="400px">
-              <VulnerabilityTrendChart data={chartData.trendData} />
-            </Box>
-            <Box flex="1" minWidth="400px">
-              <CVSSScatterPlot data={chartData.cvssData} />
-            </Box>
+            <Grow in timeout={300}>
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: "400px",
+                  transition: "transform 160ms ease, box-shadow 160ms ease",
+                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                }}
+              >
+                <VulnerabilityTrendChart data={chartData.trendData} />
+              </Paper>
+            </Grow>
+            <Grow in timeout={340}>
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: "400px",
+                  transition: "transform 160ms ease, box-shadow 160ms ease",
+                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                }}
+              >
+                <CVSSScatterPlot data={chartData.cvssData} />
+              </Paper>
+            </Grow>
           </Box>
         </Box>
       ) : (

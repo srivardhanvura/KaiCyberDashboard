@@ -188,27 +188,6 @@ class DataService {
     }
   }
 
-  public async clearData(): Promise<void> {
-    try {
-      await db.transaction("rw", db.vulns, db.aggSeverity, async () => {
-        await db.vulns.clear();
-        await db.aggSeverity.clear();
-      });
-      this.status = {
-        isIngesting: false,
-        progress: 0,
-        totalRows: 0,
-        error: null,
-      };
-      this.notifyListeners();
-      console.log("Data cleared successfully");
-    } catch (error) {
-      console.error("Error clearing data:", error);
-      this.status.error = "Failed to clear data";
-      this.notifyListeners();
-    }
-  }
-
   public destroy(): void {
     this.cleanup();
     this.listeners = [];

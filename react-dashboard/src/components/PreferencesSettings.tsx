@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { usePreferences } from "../contexts/PreferencesContext";
 import { getThemeStyles } from "../styles/theme";
-import { dataService } from "../services/DataService";
 import "./PreferencesSettings.css";
 
 interface PreferencesSettingsProps {
@@ -126,34 +125,6 @@ const PreferencesSettings = ({ isOpen, onClose }: PreferencesSettingsProps) => {
             >
               Reset Settings
             </button>
-            {process.env.NODE_ENV === "development" && (
-              <>
-                <button
-                  onClick={async () => {
-                    if (
-                      window.confirm(
-                        "Clear all vulnerability data? This will require re-downloading."
-                      )
-                    ) {
-                      await dataService.clearData();
-                      window.location.reload();
-                    }
-                  }}
-                  className="footer-button clear-data-button"
-                >
-                  Clear Data (Dev)
-                </button>
-                <button
-                  onClick={async () => {
-                    await dataService.regenerateAggregates();
-                    alert("Aggregates regenerated! Check console for details.");
-                  }}
-                  className="footer-button regenerate-button"
-                >
-                  Regenerate Aggregates
-                </button>
-              </>
-            )}
           </div>
           <button onClick={onClose} className="footer-button done-button">
             Done
