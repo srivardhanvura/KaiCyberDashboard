@@ -52,6 +52,8 @@ const DashboardPage = ({
   React.useEffect(() => {
     const checkData = async () => {
       try {
+        // During ingestion, avoid overriding snapshot-derived totals with partial DB counts
+        if (isIngesting) return;
         const count = await db.vulns.count();
         setDataCount(count);
         setHasData(count > 0);
@@ -60,6 +62,10 @@ const DashboardPage = ({
         setHasData(false);
       }
     };
+
+    if (isIngesting) {
+      return;
+    }
 
     checkData();
 
@@ -75,7 +81,9 @@ const DashboardPage = ({
 
       const effectiveFilters = { ...filters, analysisMode };
 
-      const data = await dashboardService.getChartData(effectiveFilters);
+      const data = await dashboardService.getChartData(effectiveFilters, {
+        preferSnapshot: isIngesting,
+      });
       console.log("Chart data loaded successfully:", data);
       setChartData(data);
     } catch (err) {
@@ -86,7 +94,7 @@ const DashboardPage = ({
     } finally {
       setLoading(false);
     }
-  }, [filters, analysisMode]);
+  }, [filters, analysisMode, isIngesting]);
 
   React.useEffect(() => {
     // Always attempt to load, service falls back to in-code data when DB is empty
@@ -113,36 +121,78 @@ const DashboardPage = ({
   };
 
   const getFilteredCount = React.useCallback(async () => {
-    if (!hasData) return dataCount;
-
     try {
       const effectiveFilters = { ...filters, analysisMode };
-
-      const count = await dashboardService.getFilteredCount(effectiveFilters);
+      const count = await dashboardService.getFilteredCount(effectiveFilters, {
+        preferSnapshot: isIngesting,
+      });
       return count;
     } catch (error) {
       console.error("Error getting filtered count:", error);
       return dataCount;
     }
-  }, [hasData, dataCount, filters, analysisMode]);
+  }, [dataCount, filters, analysisMode, isIngesting]);
 
   const [filteredCount, setFilteredCount] = React.useState(dataCount);
 
   React.useEffect(() => {
-    if (hasData) {
-      getFilteredCount().then(setFilteredCount);
-    }
-  }, [hasData, getFilteredCount]);
+    getFilteredCount().then(setFilteredCount);
+  }, [getFilteredCount]);
 
-  // Manual refresh handler
+  // Refresh and preserve current filters
+  const refreshPreserveFilters = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await loadChartData();
+      const count = await getFilteredCount();
+      setFilteredCount(count);
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : "Failed to load chart data";
+      setError(`Failed to load chart data: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadChartData, getFilteredCount]);
+
+  // Manual refresh handler - reset filters and reload
   const handleManualRefresh = React.useCallback(async () => {
     setLoading(true);
     setError(null);
-    await loadChartData();
-    const count = await getFilteredCount();
-    setFilteredCount(count);
-    setLoading(false);
-  }, [loadChartData, getFilteredCount]);
+
+    // Reset filters to defaults
+    setFilters({
+      severity: "all",
+      kaiStatus: "all",
+      dateRange: { start: "", end: "" },
+    });
+    setAnalysisMode("all");
+
+    // Load using default filters immediately
+    try {
+      const defaultFilters = {
+        severity: "all",
+        kaiStatus: "all",
+        dateRange: { start: "", end: "" },
+        analysisMode: "all",
+      } as any;
+      const data = await dashboardService.getChartData(defaultFilters, {
+        preferSnapshot: isIngesting,
+      });
+      setChartData(data);
+      const count = await dashboardService.getFilteredCount(defaultFilters, {
+        preferSnapshot: isIngesting,
+      });
+      setFilteredCount(count);
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : "Failed to load chart data";
+      setError(`Failed to load chart data: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [isIngesting]);
 
   // Auto-refresh once when ingestion completes
   const prevIngestingRef = React.useRef(isIngesting);
@@ -150,36 +200,36 @@ const DashboardPage = ({
     const wasIngesting = prevIngestingRef.current;
     prevIngestingRef.current = isIngesting;
     if (wasIngesting && !isIngesting && hasData) {
-      handleManualRefresh();
+      // Preserve user's current filters when ingestion completes
+      refreshPreserveFilters();
     }
-  }, [isIngesting, hasData, handleManualRefresh]);
+  }, [isIngesting, hasData, refreshPreserveFilters]);
 
-  // Keep counts in sync. When DB is empty, approximate using filtered count (from fallback data in service)
+  // Keep counts in sync. While ingesting, always use snapshot-derived total; after ingestion, use DB count
   React.useEffect(() => {
     const syncCounts = async () => {
       try {
-        const count = await db.vulns.count();
-        if (count > 0) {
-          setDataCount(count);
-          setHasData(true);
-        } else if (isIngesting) {
-          const total = await dashboardService.getFilteredCount({
-            severity: "all",
-            kaiStatus: "all",
-            dateRange: { start: "", end: "" },
-            analysisMode: "all",
-          } as any);
+        if (isIngesting) {
+          // Show snapshot total to keep UI consistent with charts while streaming
+          const total = await dashboardService.getSnapshotTotalCount();
           setDataCount(total);
           setHasData(false);
         } else {
-          setDataCount(0);
-          setHasData(false);
+          const count = await db.vulns.count();
+          setDataCount(count);
+          setHasData(count > 0);
         }
       } catch (e) {
         setHasData(false);
       }
     };
     syncCounts();
+
+    if (isIngesting) {
+      // Poll snapshot total while ingesting so it updates once snapshot becomes available
+      const interval = setInterval(syncCounts, 2000);
+      return () => clearInterval(interval);
+    }
   }, [isIngesting]);
 
   if (!hasData && !isIngesting) {
@@ -213,15 +263,6 @@ const DashboardPage = ({
         </div>
       </Fade>
 
-      {isIngesting && (
-        <div className="ingestion-notice">
-          <p>
-            🔄 Data processing in progress: {Math.round(ingestionProgress)}%
-            complete
-          </p>
-        </div>
-      )}
-
       <DashboardFilters
         severityFilter={filters.severity}
         kaiStatusFilter={filters.kaiStatus}
@@ -241,6 +282,19 @@ const DashboardPage = ({
           {error}
         </Alert>
       )}
+
+      <Box display="flex" justifyContent="flex-end" alignItems="center" mb={1}>
+        <Tooltip title="Refresh charts and reset filters">
+          <Button
+            onClick={handleManualRefresh}
+            startIcon={<RefreshIcon />}
+            size="small"
+            variant="outlined"
+          >
+            Refresh charts
+          </Button>
+        </Tooltip>
+      </Box>
 
       {loading ? (
         <Box display="flex" flexDirection="column" gap={3}>
@@ -266,100 +320,122 @@ const DashboardPage = ({
           </Box>
         </Box>
       ) : chartData ? (
-        <Box display="flex" flexDirection="column" gap={3}>
-          {isIngesting && (
-            <Box
-              display="flex"
-              justifyContent="flex-end"
-              alignItems="center"
-              mb={1}
-            >
-              <Tooltip title="Refresh charts with the latest ingested data">
-                <Button
-                  onClick={handleManualRefresh}
-                  startIcon={<RefreshIcon />}
-                  size="small"
-                  variant="outlined"
-                >
-                  Refresh charts
-                </Button>
-              </Tooltip>
+        filteredCount === 0 ? (
+          <Box display="flex" flexDirection="column" gap={3}>
+            <Box display="flex" flexWrap="wrap" gap={3}>
+              <Paper elevation={1} sx={{ p: 2, flex: 1, minWidth: "400px" }}>
+                <Typography variant="subtitle1">
+                  No data for current filters
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try clearing filters or selecting a broader date range.
+                </Typography>
+              </Paper>
+              <Paper elevation={1} sx={{ p: 2, flex: 1, minWidth: "400px" }}>
+                <Typography variant="subtitle1">
+                  No data for current filters
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try clearing filters or selecting a broader date range.
+                </Typography>
+              </Paper>
             </Box>
-          )}
-          <Box display="flex" flexWrap="wrap" gap={3}>
-            <Grow in timeout={220}>
-              <Paper
-                elevation={1}
-                sx={{
-                  p: 2,
-                  flex: 1,
-                  minWidth: "400px",
-                  transition: "transform 160ms ease, box-shadow 160ms ease",
-                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
-                }}
-              >
-                <SeverityPieChart
-                  data={chartData.severityData}
-                  disableAnimation={isIngesting}
-                />
+            <Box display="flex" flexWrap="wrap" gap={3}>
+              <Paper elevation={1} sx={{ p: 2, flex: 1, minWidth: "400px" }}>
+                <Typography variant="subtitle1">
+                  No data for current filters
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try clearing filters or selecting a broader date range.
+                </Typography>
               </Paper>
-            </Grow>
-            <Grow in timeout={260}>
-              <Paper
-                elevation={1}
-                sx={{
-                  p: 2,
-                  flex: 1,
-                  minWidth: "400px",
-                  transition: "transform 160ms ease, box-shadow 160ms ease",
-                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
-                }}
-              >
-                <RiskFactorsBarChart
-                  data={chartData.riskFactorsData}
-                  disableAnimation={isIngesting}
-                />
+              <Paper elevation={1} sx={{ p: 2, flex: 1, minWidth: "400px" }}>
+                <Typography variant="subtitle1">
+                  No data for current filters
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try clearing filters or selecting a broader date range.
+                </Typography>
               </Paper>
-            </Grow>
+            </Box>
           </Box>
+        ) : (
+          <Box display="flex" flexDirection="column" gap={3}>
+            <Box display="flex" flexWrap="wrap" gap={3}>
+              <Grow in timeout={220}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    flex: 1,
+                    minWidth: "400px",
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                  }}
+                >
+                  <SeverityPieChart
+                    data={chartData.severityData}
+                    disableAnimation={isIngesting}
+                  />
+                </Paper>
+              </Grow>
+              <Grow in timeout={260}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    flex: 1,
+                    minWidth: "400px",
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                  }}
+                >
+                  <RiskFactorsBarChart
+                    data={chartData.riskFactorsData}
+                    disableAnimation={isIngesting}
+                  />
+                </Paper>
+              </Grow>
+            </Box>
 
-          <Box display="flex" flexWrap="wrap" gap={3}>
-            <Grow in timeout={300}>
-              <Paper
-                elevation={1}
-                sx={{
-                  p: 2,
-                  flex: 1,
-                  minWidth: "400px",
-                  transition: "transform 160ms ease, box-shadow 160ms ease",
-                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
-                }}
-              >
-                <VulnerabilityTrendChart
-                  data={chartData.trendData}
-                  disableAnimation={isIngesting}
-                />
-              </Paper>
-            </Grow>
-            <Grow in timeout={340}>
-              <Paper
-                elevation={1}
-                sx={{
-                  p: 2,
-                  flex: 1,
-                  minWidth: "400px",
-                  transition: "transform 160ms ease, box-shadow 160ms ease",
-                  "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
-                }}
-              >
-                <CVSSScatterPlot
-                  data={chartData.cvssData}
-                  disableAnimation={isIngesting}
-                />
-              </Paper>
-            </Grow>
+            <Box display="flex" flexWrap="wrap" gap={3}>
+              <Grow in timeout={300}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    flex: 1,
+                    minWidth: "400px",
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                  }}
+                >
+                  <VulnerabilityTrendChart
+                    data={chartData.trendData}
+                    disableAnimation={isIngesting}
+                  />
+                </Paper>
+              </Grow>
+              <Grow in timeout={340}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    flex: 1,
+                    minWidth: "400px",
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                  }}
+                >
+                  <CVSSScatterPlot
+                    data={chartData.cvssData}
+                    disableAnimation={isIngesting}
+                  />
+                </Paper>
+              </Grow>
+            </Box>
           </Box>
-        </Box>
+        )
       ) : (
         <Box
           display="flex"

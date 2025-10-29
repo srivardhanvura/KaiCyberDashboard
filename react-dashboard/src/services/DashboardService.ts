@@ -29,61 +29,99 @@ export interface DashboardFilters {
   analysisMode?: "all" | "analysis" | "ai-analysis";
 }
 
+type QueryOptions = { preferSnapshot?: boolean };
+
+type SnapshotAggregates = {
+  totalCount?: number;
+  generatedAt?: string;
+  aggregates: {
+    severityByKaiFilter: Record<string, Record<Severity, number>>;
+    dailySeverityByKaiFilter: Record<string, Record<string, Record<Severity, number>>>;
+      riskFactorsByKaiFilter: Record<string, Record<string, number>>;
+      riskFactorsByKaiFilterBySeverity: Record<
+        string,
+        Record<Severity, Record<string, number>>
+      >;
+      // lastYear variants
+      severityByKaiFilter_lastYear: Record<string, Record<Severity, number>>;
+      riskFactorsByKaiFilter_lastYear: Record<string, Record<string, number>>;
+      riskFactorsByKaiFilterBySeverity_lastYear: Record<
+        string,
+        Record<Severity, Record<string, number>>
+      >;
+      cvssSamplesByKaiFilter_lastYear: Record<
+        string,
+        { cvss: number; daysSincePublished: number; severity: Severity; cve: string }[]
+      >;
+    cvssSamplesByKaiFilter: Record<
+      string,
+      { cvss: number; daysSincePublished: number; severity: Severity; cve: string }[]
+    >;
+    severityByKaiStatusSingle: Record<string, Record<Severity, number>>;
+    dailySeverityByKaiStatusSingle: Record<string, Record<string, Record<Severity, number>>>;
+      riskFactorsByKaiStatusSingle: Record<string, Record<string, number>>;
+      riskFactorsByKaiStatusSingle_lastYear: Record<string, Record<string, number>>;
+  };
+};
+
 type SnapshotPayload =
-  | {
-      rows: VulnRow[];
-      totalCount?: number;
-    }
-  | {
-      chartData: ChartData;
-      totalCount?: number;
-    };
+  | { rows: VulnRow[]; totalCount?: number }
+  | { chartData: ChartData; totalCount?: number }
+  | SnapshotAggregates;
 
 class DashboardService {
   private snapshot: SnapshotPayload | null = null;
   private snapshotLoaded = false;
+  private snapshotLoadingPromise: Promise<SnapshotPayload | null> | null = null;
 
   private async loadSnapshot(): Promise<SnapshotPayload | null> {
     if (this.snapshotLoaded) return this.snapshot;
-    this.snapshotLoaded = true;
-    try {
-      const res = await fetch("/dashboard_snapshot.json", {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        console.warn("No snapshot available (HTTP)");
-        this.snapshot = null;
+    if (this.snapshotLoadingPromise) return this.snapshotLoadingPromise;
+
+    this.snapshotLoadingPromise = (async () => {
+      try {
+        const res = await fetch("/dashboard_snapshot.json", { cache: "no-store" });
+        if (!res.ok) {
+          console.warn("No snapshot available (HTTP)");
+          return null;
+        }
+        const json = await res.json();
+        let snap: SnapshotPayload | null = null;
+        if (json?.rows && Array.isArray(json.rows)) {
+          snap = { rows: json.rows as VulnRow[], totalCount: json.totalCount };
+        } else if (json?.chartData) {
+          snap = { chartData: json.chartData as ChartData, totalCount: json.totalCount };
+        } else if (json?.aggregates) {
+          snap = json as SnapshotAggregates;
+        } else {
+          console.warn("Snapshot format not recognized");
+          snap = null;
+        }
+        if (snap) {
+          this.snapshot = snap;
+          this.snapshotLoaded = true;
+        }
+        return snap;
+      } catch (e) {
+        console.warn("Failed to load snapshot:", e);
         return null;
+      } finally {
+        this.snapshotLoadingPromise = null;
       }
-      const json = await res.json();
-      if (json?.rows && Array.isArray(json.rows)) {
-        this.snapshot = {
-          rows: json.rows as VulnRow[],
-          totalCount: json.totalCount,
-        };
-      } else if (json?.chartData) {
-        this.snapshot = {
-          chartData: json.chartData as ChartData,
-          totalCount: json.totalCount,
-        };
-      } else {
-        console.warn("Snapshot format not recognized");
-        this.snapshot = null;
-      }
-      return this.snapshot;
-    } catch (e) {
-      console.warn("Failed to load snapshot:", e);
-      this.snapshot = null;
-      return null;
-    }
+    })();
+
+    return this.snapshotLoadingPromise;
   }
-  public async getChartData(filters: DashboardFilters): Promise<ChartData> {
+  public async getChartData(
+    filters: DashboardFilters,
+    options?: QueryOptions
+  ): Promise<ChartData> {
     try {
       console.log("Getting chart data with filters:", filters);
 
-      // If DB is empty, operate on cached snapshot if available
+      // If DB is empty OR caller prefers snapshot (during ingestion), use snapshot
       const totalCount = await db.vulns.count();
-      const useSnapshot = totalCount === 0;
+      const useSnapshot = options?.preferSnapshot || totalCount === 0;
 
       let query = useSnapshot ? null : db.vulns.toCollection();
 
@@ -123,16 +161,27 @@ class DashboardService {
       let vulnerabilities: VulnRow[] = [];
       if (useSnapshot) {
         const snap = await this.loadSnapshot();
-        if (snap && "rows" in snap) {
+        if (!snap) return { severityData: [], riskFactorsData: [], trendData: [], cvssData: [] };
+
+        // If aggregates present, synthesize chart data using filters
+        if ("aggregates" in (snap as any)) {
+          return this.buildChartDataFromAggregates(
+            snap as SnapshotAggregates,
+            filters
+          );
+        }
+
+        if ("rows" in snap) {
           vulnerabilities = (snap.rows as VulnRow[]).filter(baseFilter);
-        } else if (snap && "chartData" in snap) {
-          // Return precomputed chart data when provided
-          return snap.chartData as ChartData;
+        } else if ("chartData" in snap) {
+          return (snap as any).chartData as ChartData;
         } else {
           vulnerabilities = [];
         }
       } else {
+        // Apply filters at the DB level to avoid loading unnecessary rows
         vulnerabilities = await (query as any)
+          .filter(baseFilter)
           .toArray()
           .then((rows: VulnRow[]) => rows);
       }
@@ -255,10 +304,13 @@ class DashboardService {
       .slice(0, 1000); // Limit to 1000 points for performance
   }
 
-  public async getFilteredCount(filters: DashboardFilters): Promise<number> {
+  public async getFilteredCount(
+    filters: DashboardFilters,
+    options?: QueryOptions
+  ): Promise<number> {
     try {
       const totalCount = await db.vulns.count();
-      const useSnapshot = totalCount === 0;
+      const useSnapshot = options?.preferSnapshot || totalCount === 0;
       let query = useSnapshot ? null : db.vulns.toCollection();
 
       const baseFilter = (vuln: VulnRow) => {
@@ -296,24 +348,208 @@ class DashboardService {
       // Apply filters to narrow down the dataset
       if (useSnapshot) {
         const snap = await this.loadSnapshot();
-        if (snap && "rows" in snap) {
+        if (!snap) return 0;
+
+        if ("aggregates" in (snap as any)) {
+          return this.computeFilteredCountFromAggregates(
+            snap as SnapshotAggregates,
+            filters
+          );
+        }
+        if ("rows" in snap) {
           return (snap.rows as VulnRow[]).filter(baseFilter).length;
         }
-        if (
-          snap &&
-          "totalCount" in snap &&
-          typeof snap.totalCount === "number"
-        ) {
-          return snap.totalCount as number;
+        if ("totalCount" in (snap as any) && typeof (snap as any).totalCount === "number") {
+          return (snap as any).totalCount as number;
         }
         return 0;
       }
 
-      return await (query as any).count();
+      // Apply filters when counting from DB as well
+      return await (query as any).filter(baseFilter).count();
     } catch (error) {
       console.error("Error getting filtered count:", error);
       throw error;
     }
+  }
+
+  public async getSnapshotTotalCount(): Promise<number> {
+    const snap = await this.loadSnapshot();
+    if (!snap) return 0;
+    if ("totalCount" in (snap as any) && typeof (snap as any).totalCount === "number") {
+      return (snap as any).totalCount as number;
+    }
+    if ("aggregates" in (snap as any)) {
+      const sevMap = (snap as SnapshotAggregates).aggregates.severityByKaiFilter["all"] || {};
+      return Object.values(sevMap).reduce((sum, c) => sum + (c as number), 0);
+    }
+    if ("rows" in snap) return (snap.rows as VulnRow[]).length;
+    return 0;
+  }
+
+  private buildChartDataFromAggregates(
+    snap: SnapshotAggregates,
+    filters: DashboardFilters
+  ): ChartData {
+    const mode = filters.analysisMode || "all";
+    const agg = snap.aggregates;
+
+    // If analysis mode excludes the selected kaiStatus, return zeroed datasets
+    if (
+      filters.kaiStatus &&
+      filters.kaiStatus !== "all" &&
+      ((mode === "analysis" && filters.kaiStatus === ("invalid - norisk" as any)) ||
+        (mode === "ai-analysis" && filters.kaiStatus === ("ai-invalid-norisk" as any)))
+    ) {
+      return {
+        severityData: [],
+        riskFactorsData: [],
+        trendData: [],
+        cvssData: [],
+      };
+    }
+
+    // If date range yields zero items, return empty charts
+    const inRangeTotal = this.computeFilteredCountFromAggregates(snap, filters);
+    if (filters.dateRange?.start && inRangeTotal === 0) {
+      return { severityData: [], riskFactorsData: [], trendData: [], cvssData: [] };
+    }
+
+    const isLastYear = filters.dateRange?.start === "365";
+
+    // Severity distribution
+    const sevCountsSource = (() => {
+      if (filters.kaiStatus && filters.kaiStatus !== "all") {
+        return agg.severityByKaiStatusSingle[String(filters.kaiStatus)] || {};
+      }
+      if (isLastYear) {
+        return agg.severityByKaiFilter_lastYear[mode] || {};
+      }
+      return agg.severityByKaiFilter[mode] || {};
+    })();
+
+    const severityData = Object.entries(sevCountsSource)
+      .filter(([severity]) =>
+        filters.severity === "all" ? true : severity === filters.severity
+      )
+      .map(([severity, count]) => ({ severity: severity as Severity, count }));
+
+    // Trend data (last 30 days), optionally filtered by severity
+    const dailySourceByDate =
+      filters.kaiStatus && filters.kaiStatus !== "all"
+        ? agg.dailySeverityByKaiStatusSingle[String(filters.kaiStatus)] || {}
+        : agg.dailySeverityByKaiFilter[mode] || {};
+
+    const trendEntries = Object.entries(dailySourceByDate)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, sevMap]) => {
+        const entry = {
+          date,
+          critical: 0,
+          high: 0,
+          medium: 0,
+          low: 0,
+          unknown: 0,
+        } as any;
+        for (const [sev, c] of Object.entries(sevMap)) {
+          if (filters.severity === "all" || filters.severity === (sev as Severity)) {
+            entry[sev] = c as number;
+          }
+        }
+        return entry as ChartData["trendData"][number];
+      });
+
+    // Apply dateRange.start if provided
+    let trendData = trendEntries;
+    if (filters.dateRange?.start) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(filters.dateRange.start));
+      const startStr = startDate.toISOString().split("T")[0];
+      trendData = trendEntries.filter((e) => e.date >= startStr);
+    }
+    trendData = trendData.slice(-30);
+
+    // Risk factors: support filtering by specific kaiStatus or severity; switch to lastYear maps if needed
+    let rfCounts: Record<string, number> = {};
+    if (filters.kaiStatus && filters.kaiStatus !== "all") {
+      rfCounts = isLastYear
+        ? agg.riskFactorsByKaiStatusSingle_lastYear[String(filters.kaiStatus)] || {}
+        : agg.riskFactorsByKaiStatusSingle[String(filters.kaiStatus)] || {};
+    } else if (filters.severity && filters.severity !== "all") {
+      rfCounts = isLastYear
+        ? (agg.riskFactorsByKaiFilterBySeverity_lastYear[mode] || ({} as any))[
+            filters.severity
+          ] || {}
+        : (agg.riskFactorsByKaiFilterBySeverity[mode] || ({} as any))[
+            filters.severity
+          ] || {};
+    } else {
+      rfCounts = isLastYear
+        ? agg.riskFactorsByKaiFilter_lastYear[mode] || {}
+        : agg.riskFactorsByKaiFilter[mode] || {};
+    }
+    const riskFactorsData = Object.entries(rfCounts)
+      .map(([factor, count]) => ({ factor, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // CVSS samples: use variant samples and optionally filter by severity; choose lastYear if needed
+    const cvssSource = isLastYear
+      ? agg.cvssSamplesByKaiFilter_lastYear[mode] || []
+      : agg.cvssSamplesByKaiFilter[mode] || [];
+    const samples = cvssSource.filter((s) =>
+      filters.severity === "all" ? true : s.severity === filters.severity
+    );
+    const cvssData = samples.slice(0, 1000);
+
+    return { severityData, riskFactorsData, trendData, cvssData };
+  }
+
+  private computeFilteredCountFromAggregates(
+    snap: SnapshotAggregates,
+    filters: DashboardFilters
+  ): number {
+    const mode = filters.analysisMode || "all";
+    const agg = snap.aggregates;
+
+    // If analysis mode excludes the selected kaiStatus, the result is zero
+    if (
+      filters.kaiStatus &&
+      filters.kaiStatus !== "all" &&
+      ((mode === "analysis" && filters.kaiStatus === ("invalid - norisk" as any)) ||
+        (mode === "ai-analysis" && filters.kaiStatus === ("ai-invalid-norisk" as any)))
+    ) {
+      return 0;
+    }
+
+    // Choose base series for counting
+    const dailySourceByDate =
+      filters.kaiStatus && filters.kaiStatus !== "all"
+        ? agg.dailySeverityByKaiStatusSingle[String(filters.kaiStatus)] || {}
+        : agg.dailySeverityByKaiFilter[mode] || {};
+
+    // Apply date range by summing days in range
+    const dates = Object.keys(dailySourceByDate).sort();
+    let fromIdx = 0;
+    if (filters.dateRange?.start) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(filters.dateRange.start));
+      const startStr = startDate.toISOString().split("T")[0];
+      fromIdx = dates.findIndex((d) => d >= startStr);
+      if (fromIdx === -1) return 0;
+    }
+    const sliced = dates.slice(fromIdx);
+
+    let total = 0;
+    for (const d of sliced) {
+      const sevMap = dailySourceByDate[d] || {};
+      if (filters.severity === "all") {
+        for (const c of Object.values(sevMap)) total += c as number;
+      } else {
+        total += (sevMap[filters.severity] || 0) as number;
+      }
+    }
+    return total;
   }
 
   public async getDashboardStats(): Promise<{

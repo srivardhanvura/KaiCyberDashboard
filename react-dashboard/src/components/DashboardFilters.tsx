@@ -118,9 +118,24 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 
           <Box minWidth="150px" flex="1">
             <FormControl fullWidth size="small">
-              <InputLabel>Start Date</InputLabel>
+              <InputLabel id="start-date-label" shrink>
+                Start Date
+              </InputLabel>
               <Select
+                labelId="start-date-label"
+                label="Start Date"
                 value={dateRange.start}
+                displayEmpty
+                renderValue={(value) => {
+                  if (!value) return "All Time";
+                  const map: Record<string, string> = {
+                    "7": "Last 7 days",
+                    "30": "Last 30 days",
+                    "90": "Last 90 days",
+                    "365": "Last year",
+                  };
+                  return map[String(value)] || "All Time";
+                }}
                 onChange={(e) =>
                   onDateRangeChange({ ...dateRange, start: e.target.value })
                 }
@@ -203,17 +218,22 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
               Showing {filteredCount.toLocaleString()} of{" "}
               {totalCount.toLocaleString()} vulnerabilities
             </Typography>
-            {analysisMode !== "all" && (
-              <Chip
-                label={`${(
-                  ((totalCount - filteredCount) / totalCount) *
-                  100
-                ).toFixed(1)}% filtered out`}
-                color="warning"
-                size="small"
-                variant="outlined"
-              />
-            )}
+            {analysisMode !== "all" &&
+              totalCount > 0 &&
+              filteredCount <= totalCount && (
+                <Chip
+                  label={`${Math.max(
+                    0,
+                    Math.min(
+                      100,
+                      ((totalCount - filteredCount) / totalCount) * 100
+                    )
+                  ).toFixed(1)}% filtered out`}
+                  color="warning"
+                  size="small"
+                  variant="outlined"
+                />
+              )}
           </Box>
         </Box>
       </CardContent>

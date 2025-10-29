@@ -76,6 +76,17 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
     }
   };
 
+  const handleRefreshAndReset = async () => {
+    // Reset all filters and sorting
+    setSearchTerm("");
+    setSeverityFilter("all");
+    setAnalysisFilter("all");
+    setSortBy("discoveredAt");
+    setSortOrder("desc");
+    setPage(0);
+    await loadVulnerabilities();
+  };
+
   const filteredAndSortedVulnerabilities = useMemo(() => {
     let filtered = vulnerabilities.filter((vuln) => {
       const matchesSearch =
@@ -296,8 +307,8 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
                 <CompareIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Refresh">
-              <IconButton onClick={loadVulnerabilities}>
+            <Tooltip title="Refresh (reset filters)">
+              <IconButton onClick={handleRefreshAndReset}>
                 <RefreshIcon />
               </IconButton>
             </Tooltip>
@@ -310,9 +321,15 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               freeSolo
               options={searchSuggestions}
               inputValue={searchTerm}
-              onInputChange={(_, value) => setSearchTerm(value)}
+              onInputChange={(_, value) => {
+                setSearchTerm(value);
+                setPage(0);
+              }}
               onChange={(_, value) => {
-                if (typeof value === "string") setSearchTerm(value);
+                if (typeof value === "string") {
+                  setSearchTerm(value);
+                  setPage(0);
+                }
               }}
               filterSelectedOptions
               renderInput={(params) => (
@@ -334,9 +351,10 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               <InputLabel>Severity</InputLabel>
               <Select
                 value={severityFilter}
-                onChange={(e) =>
-                  setSeverityFilter(e.target.value as Severity | "all")
-                }
+                onChange={(e) => {
+                  setSeverityFilter(e.target.value as Severity | "all");
+                  setPage(0);
+                }}
               >
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="critical">Critical</MenuItem>
@@ -356,7 +374,10 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
             <ButtonGroup variant="outlined" aria-label="analysis actions">
               <Button
                 startIcon={<SearchIcon />}
-                onClick={() => setAnalysisFilter("analysis")}
+                onClick={() => {
+                  setAnalysisFilter("analysis");
+                  setPage(0);
+                }}
                 variant={
                   analysisFilter === "analysis" ? "contained" : "outlined"
                 }
@@ -380,7 +401,10 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
               </Button>
               <Button
                 startIcon={<AIIcon />}
-                onClick={() => setAnalysisFilter("ai-analysis")}
+                onClick={() => {
+                  setAnalysisFilter("ai-analysis");
+                  setPage(0);
+                }}
                 variant={
                   analysisFilter === "ai-analysis" ? "contained" : "outlined"
                 }
@@ -405,7 +429,10 @@ const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = () => {
                 />
               </Button>
               <Button
-                onClick={() => setAnalysisFilter("all")}
+                onClick={() => {
+                  setAnalysisFilter("all");
+                  setPage(0);
+                }}
                 variant={analysisFilter === "all" ? "contained" : "outlined"}
                 color="inherit"
                 sx={{

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Box, Paper, Typography, Button, useTheme } from "@mui/material";
+import { Box, Paper, Typography, Button, Stack, Chip } from "@mui/material";
 import "./LandingPage.css";
 
 interface LandingPageProps {
@@ -14,92 +14,125 @@ const LandingPage = ({
   totalRows,
 }: LandingPageProps) => {
   const navigate = useNavigate();
-  const theme = useTheme();
   return (
     <Box className="landing-page">
-      <Typography variant="h3" component="h1" gutterBottom>
-        Vulnerability Dashboard
-      </Typography>
-
-      <Typography className="description" variant="subtitle1" gutterBottom>
-        Comprehensive security vulnerability analysis and monitoring platform
-      </Typography>
+      <Paper className="hero" elevation={0} sx={{ p: 4, mb: 4 }}>
+        <Stack spacing={2} alignItems="center">
+          <Chip
+            label="KaiCyber"
+            color="primary"
+            variant="outlined"
+            size="small"
+            className="brand-chip"
+          />
+          <Typography variant="h3" component="h1" className="hero-title">
+            Actionable Vulnerability Intelligence
+          </Typography>
+          <Typography variant="subtitle1" className="hero-subtitle">
+            Turn massive CVE feeds into clear, prioritized security insights
+            your team can act on now.
+          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            sx={{ mt: 1 }}
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              sx={{ px: 4, py: 1.5, borderRadius: 2, fontWeight: 600 }}
+              onClick={() => navigate("/dashboard")}
+            >
+              {isIngesting
+                ? "📊 Enter Dashboard (Loading...)"
+                : "🚀 Enter Dashboard"}
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              sx={{ px: 4, py: 1.5, borderRadius: 2, fontWeight: 600 }}
+              onClick={() => navigate("/vulnerabilities")}
+            >
+              Browse Vulnerabilities
+            </Button>
+          </Stack>
+          {!isIngesting && totalRows > 0 && (
+            <Typography className="success-message" variant="body2">
+              ✅ Data loaded: {totalRows.toLocaleString()} records ready for
+              analysis
+            </Typography>
+          )}
+        </Stack>
+      </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }} className="features-container">
         <Typography variant="h6" component="h2" gutterBottom>
-          Features
+          Why KaiCyber
         </Typography>
         <Box className="features-grid">
           <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
-            <Typography variant="h6" className="critical-severity">
-              🔴 Critical
-            </Typography>
+            <Typography variant="h6">Prioritized Risk</Typography>
             <Typography variant="body2">
-              High-priority vulnerabilities
+              Focus on what matters: severity trends, CVSS exposure, and risk
+              factors at a glance.
             </Typography>
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
-            <Typography variant="h6" className="high-severity">
-              🟠 High
+            <Typography variant="h6">Real-time Updates</Typography>
+            <Typography variant="body2">
+              Live ingestion with a cached snapshot so you see insights
+              instantly.
             </Typography>
-            <Typography variant="body2">Important security issues</Typography>
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
-            <Typography variant="h6" className="medium-severity">
-              🟡 Medium
+            <Typography variant="h6">Deep Filtering</Typography>
+            <Typography variant="body2">
+              Slice by severity, AI analysis, date windows, and more without
+              losing performance.
             </Typography>
-            <Typography variant="body2">Moderate risk factors</Typography>
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
-            <Typography variant="h6" className="low-severity">
-              🟢 Low
+            <Typography variant="h6">Visual Clarity</Typography>
+            <Typography variant="body2">
+              Clean, interactive charts for trends, severity distribution, and
+              CVSS impact.
             </Typography>
-            <Typography variant="body2">Lower priority items</Typography>
           </Paper>
         </Box>
       </Paper>
 
-      {isIngesting && (
-        <Paper sx={{ p: 3, mb: 3 }} className="loading-container">
-          <Typography variant="h6" gutterBottom>
-            📊 Loading Vulnerability Data...
-          </Typography>
-          <Box className="progress-container">
-            <Box className="progress-bar">
-              <Box
-                className="progress-fill"
-                sx={{ backgroundColor: theme.palette.primary.main }}
-                style={{ width: `${Math.min(ingestionProgress, 100)}%` }}
-              />
-            </Box>
-            <Typography className="progress-text" variant="body2">
-              {Math.round(ingestionProgress)}% complete (
-              {totalRows.toLocaleString()} rows processed)
-            </Typography>
-          </Box>
-          <Typography className="loading-description" variant="body2">
-            Data is being processed in the background. You can enter the
-            dashboard to see real-time updates.
-          </Typography>
-        </Paper>
-      )}
-
-      <Button
-        variant="contained"
-        color="primary"
-        size="large"
-        sx={{ px: 4, py: 1.5, borderRadius: 2, fontWeight: 600, mb: 1 }}
-        onClick={() => navigate("/dashboard")}
-      >
-        {isIngesting ? "📊 Enter Dashboard (Loading...)" : "🚀 Enter Dashboard"}
-      </Button>
-
-      {!isIngesting && totalRows > 0 && (
-        <Typography className="success-message" variant="body2">
-          ✅ Data loaded successfully! {totalRows.toLocaleString()}{" "}
-          vulnerabilities ready for analysis.
+      <Paper sx={{ p: 3 }} className="how-container" elevation={0}>
+        <Typography variant="h6" component="h2" gutterBottom>
+          How it works
         </Typography>
-      )}
+        <Box className="how-grid">
+          <Paper variant="outlined" className="how-card" sx={{ p: 2 }}>
+            <Typography variant="subtitle2">1. Ingest</Typography>
+            <Typography variant="body2">
+              Pull CVE data securely from your sources.
+            </Typography>
+          </Paper>
+          <Paper variant="outlined" className="how-card" sx={{ p: 2 }}>
+            <Typography variant="subtitle2">2. Normalize</Typography>
+            <Typography variant="body2">
+              Standardize fields and compute key metrics.
+            </Typography>
+          </Paper>
+          <Paper variant="outlined" className="how-card" sx={{ p: 2 }}>
+            <Typography variant="subtitle2">3. Analyze</Typography>
+            <Typography variant="body2">
+              Aggregate, trend, and prioritize with AI-assisted filters.
+            </Typography>
+          </Paper>
+          <Paper variant="outlined" className="how-card" sx={{ p: 2 }}>
+            <Typography variant="subtitle2">4. Act</Typography>
+            <Typography variant="body2">
+              Drill down to affected assets and export for action.
+            </Typography>
+          </Paper>
+        </Box>
+      </Paper>
     </Box>
   );
 };
