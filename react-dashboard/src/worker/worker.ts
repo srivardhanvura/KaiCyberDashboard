@@ -66,7 +66,7 @@ const ingest = async () => {
     console.log("JSON parsed successfully");
 
     // Process data in batches to avoid memory issues with large datasets
-    const BATCH_SIZE = 10000;
+    const BATCH_SIZE = 25000;
     const vulnRows: VulnRow[] = [];
     const sevCounts = new Map<Severity | "unknown", number>();
     let totalWritten = 0;
