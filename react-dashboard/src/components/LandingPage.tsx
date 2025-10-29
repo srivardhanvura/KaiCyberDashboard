@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Box, Paper, Typography, Button, useTheme } from "@mui/material";
 import "./LandingPage.css";
 
 interface LandingPageProps {
@@ -13,72 +14,93 @@ const LandingPage = ({
   totalRows,
 }: LandingPageProps) => {
   const navigate = useNavigate();
+  const theme = useTheme();
   return (
-    <div className="landing-page">
-      <h1>Vulnerability Dashboard</h1>
+    <Box className="landing-page">
+      <Typography variant="h3" component="h1" gutterBottom>
+        Vulnerability Dashboard
+      </Typography>
 
-      <p className="description">
+      <Typography className="description" variant="subtitle1" gutterBottom>
         Comprehensive security vulnerability analysis and monitoring platform
-      </p>
+      </Typography>
 
-      <div className="features-container">
-        <h2>Features</h2>
-        <div className="features-grid">
-          <div className="feature-card">
-            <h3 className="critical-severity">🔴 Critical</h3>
-            <p>High-priority vulnerabilities</p>
-          </div>
-          <div className="feature-card">
-            <h3 className="high-severity">🟠 High</h3>
-            <p>Important security issues</p>
-          </div>
-          <div className="feature-card">
-            <h3 className="medium-severity">🟡 Medium</h3>
-            <p>Moderate risk factors</p>
-          </div>
-          <div className="feature-card">
-            <h3 className="low-severity">🟢 Low</h3>
-            <p>Lower priority items</p>
-          </div>
-        </div>
-      </div>
+      <Paper sx={{ p: 3, mb: 3 }} className="features-container">
+        <Typography variant="h6" component="h2" gutterBottom>
+          Features
+        </Typography>
+        <Box className="features-grid">
+          <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
+            <Typography variant="h6" className="critical-severity">
+              🔴 Critical
+            </Typography>
+            <Typography variant="body2">
+              High-priority vulnerabilities
+            </Typography>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
+            <Typography variant="h6" className="high-severity">
+              🟠 High
+            </Typography>
+            <Typography variant="body2">Important security issues</Typography>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
+            <Typography variant="h6" className="medium-severity">
+              🟡 Medium
+            </Typography>
+            <Typography variant="body2">Moderate risk factors</Typography>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2 }} className="feature-card">
+            <Typography variant="h6" className="low-severity">
+              🟢 Low
+            </Typography>
+            <Typography variant="body2">Lower priority items</Typography>
+          </Paper>
+        </Box>
+      </Paper>
 
       {isIngesting && (
-        <div className="loading-container">
-          <h3>📊 Loading Vulnerability Data...</h3>
-          <div className="progress-container">
-            <div className="progress-bar">
-              <div
+        <Paper sx={{ p: 3, mb: 3 }} className="loading-container">
+          <Typography variant="h6" gutterBottom>
+            📊 Loading Vulnerability Data...
+          </Typography>
+          <Box className="progress-container">
+            <Box className="progress-bar">
+              <Box
                 className="progress-fill"
+                sx={{ backgroundColor: theme.palette.primary.main }}
                 style={{ width: `${Math.min(ingestionProgress, 100)}%` }}
               />
-            </div>
-            <p className="progress-text">
+            </Box>
+            <Typography className="progress-text" variant="body2">
               {Math.round(ingestionProgress)}% complete (
               {totalRows.toLocaleString()} rows processed)
-            </p>
-          </div>
-          <p className="loading-description">
+            </Typography>
+          </Box>
+          <Typography className="loading-description" variant="body2">
             Data is being processed in the background. You can enter the
             dashboard to see real-time updates.
-          </p>
-        </div>
+          </Typography>
+        </Paper>
       )}
 
-      <button
+      <Button
+        variant="contained"
+        color="primary"
+        size="large"
+        sx={{ px: 4, py: 1.5, borderRadius: 2, fontWeight: 600, mb: 1 }}
         onClick={() => navigate("/dashboard")}
-        className="enter-dashboard-btn"
       >
         {isIngesting ? "📊 Enter Dashboard (Loading...)" : "🚀 Enter Dashboard"}
-      </button>
+      </Button>
 
       {!isIngesting && totalRows > 0 && (
-        <p className="success-message">
+        <Typography className="success-message" variant="body2">
           ✅ Data loaded successfully! {totalRows.toLocaleString()}{" "}
           vulnerabilities ready for analysis.
-        </p>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 };
 

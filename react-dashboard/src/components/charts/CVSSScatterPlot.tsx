@@ -22,11 +22,13 @@ interface CVSSData {
 interface CVSSScatterPlotProps {
   data: CVSSData[];
   title?: string;
+  disableAnimation?: boolean;
 }
 
 const CVSSScatterPlot: React.FC<CVSSScatterPlotProps> = ({
   data,
   title = "CVSS Score vs Time Since Publication",
+  disableAnimation = false,
 }) => {
   const theme = useTheme();
 
@@ -98,7 +100,11 @@ const CVSSScatterPlot: React.FC<CVSSScatterPlotProps> = ({
                   return "";
                 }}
               />
-              <Scatter dataKey="cvss" fill="#8884d8">
+              <Scatter
+                dataKey="cvss"
+                fill="#8884d8"
+                isAnimationActive={!disableAnimation}
+              >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}

@@ -13,11 +13,13 @@ import { Card, CardContent, Typography, Box, useTheme } from "@mui/material";
 interface RiskFactorsBarChartProps {
   data: { factor: string; count: number }[];
   title?: string;
+  disableAnimation?: boolean;
 }
 
 const RiskFactorsBarChart: React.FC<RiskFactorsBarChartProps> = ({
   data,
   title = "Risk Factors Frequency",
+  disableAnimation = false,
 }) => {
   const theme = useTheme();
 
@@ -60,7 +62,11 @@ const RiskFactorsBarChart: React.FC<RiskFactorsBarChartProps> = ({
                   return `Risk Factor: ${label}`;
                 }}
               />
-              <Bar dataKey="count" fill={theme.palette.primary.main} />
+              <Bar
+                dataKey="count"
+                fill={theme.palette.primary.main}
+                isAnimationActive={!disableAnimation}
+              />
             </BarChart>
           </ResponsiveContainer>
         </Box>

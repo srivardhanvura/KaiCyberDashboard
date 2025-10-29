@@ -51,8 +51,6 @@ const App = () => {
     setIngestionStatus(initialStatus);
 
     const checkAndStartIngestion = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
       const hasExistingData = await dataService.hasData();
       const currentStatus = dataService.getStatus();
       console.log("After initialization check:", {

@@ -29,41 +29,113 @@ export interface DashboardFilters {
   analysisMode?: "all" | "analysis" | "ai-analysis";
 }
 
+type SnapshotPayload =
+  | {
+      rows: VulnRow[];
+      totalCount?: number;
+    }
+  | {
+      chartData: ChartData;
+      totalCount?: number;
+    };
+
 class DashboardService {
+  private snapshot: SnapshotPayload | null = null;
+  private snapshotLoaded = false;
+
+  private async loadSnapshot(): Promise<SnapshotPayload | null> {
+    if (this.snapshotLoaded) return this.snapshot;
+    this.snapshotLoaded = true;
+    try {
+      const res = await fetch("/dashboard_snapshot.json", {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        console.warn("No snapshot available (HTTP)");
+        this.snapshot = null;
+        return null;
+      }
+      const json = await res.json();
+      if (json?.rows && Array.isArray(json.rows)) {
+        this.snapshot = {
+          rows: json.rows as VulnRow[],
+          totalCount: json.totalCount,
+        };
+      } else if (json?.chartData) {
+        this.snapshot = {
+          chartData: json.chartData as ChartData,
+          totalCount: json.totalCount,
+        };
+      } else {
+        console.warn("Snapshot format not recognized");
+        this.snapshot = null;
+      }
+      return this.snapshot;
+    } catch (e) {
+      console.warn("Failed to load snapshot:", e);
+      this.snapshot = null;
+      return null;
+    }
+  }
   public async getChartData(filters: DashboardFilters): Promise<ChartData> {
     try {
       console.log("Getting chart data with filters:", filters);
 
-      let query = db.vulns.toCollection();
+      // If DB is empty, operate on cached snapshot if available
+      const totalCount = await db.vulns.count();
+      const useSnapshot = totalCount === 0;
 
-      if (filters.severity !== "all") {
-        query = query.filter((vuln) => vuln.severity === filters.severity);
+      let query = useSnapshot ? null : db.vulns.toCollection();
+
+      const baseFilter = (vuln: VulnRow) => {
+        // Apply all filters to a single row
+        if (filters.severity !== "all" && vuln.severity !== filters.severity) {
+          return false;
+        }
+        if (
+          filters.kaiStatus !== "all" &&
+          vuln.kaiStatus !== filters.kaiStatus
+        ) {
+          return false;
+        }
+        if (
+          filters.analysisMode === "analysis" &&
+          vuln.kaiStatus === "invalid - norisk"
+        ) {
+          return false;
+        }
+        if (
+          filters.analysisMode === "ai-analysis" &&
+          vuln.kaiStatus === "ai-invalid-norisk"
+        ) {
+          return false;
+        }
+        if (filters.dateRange.start) {
+          const startDate = new Date();
+          startDate.setDate(
+            startDate.getDate() - parseInt(filters.dateRange.start)
+          );
+          if (vuln.discoveredAt < startDate.getTime()) return false;
+        }
+        return true;
+      };
+
+      let vulnerabilities: VulnRow[] = [];
+      if (useSnapshot) {
+        const snap = await this.loadSnapshot();
+        if (snap && "rows" in snap) {
+          vulnerabilities = (snap.rows as VulnRow[]).filter(baseFilter);
+        } else if (snap && "chartData" in snap) {
+          // Return precomputed chart data when provided
+          return snap.chartData as ChartData;
+        } else {
+          vulnerabilities = [];
+        }
+      } else {
+        vulnerabilities = await (query as any)
+          .toArray()
+          .then((rows: VulnRow[]) => rows);
       }
-
-      if (filters.kaiStatus !== "all") {
-        query = query.filter((vuln) => vuln.kaiStatus === filters.kaiStatus);
-      }
-
-      // Apply analysis mode filtering
-      if (filters.analysisMode === "analysis") {
-        // Exclude vulnerabilities with kaiStatus "invalid - norisk"
-        query = query.filter((vuln) => vuln.kaiStatus !== "invalid - norisk");
-      } else if (filters.analysisMode === "ai-analysis") {
-        // Exclude vulnerabilities with kaiStatus "ai-invalid-norisk"
-        query = query.filter((vuln) => vuln.kaiStatus !== "ai-invalid-norisk");
-      }
-
-      if (filters.dateRange.start) {
-        const startDate = new Date();
-        startDate.setDate(
-          startDate.getDate() - parseInt(filters.dateRange.start)
-        );
-        query = query.filter(
-          (vuln) => vuln.discoveredAt >= startDate.getTime()
-        );
-      }
-
-      const vulnerabilities = await query.toArray();
       console.log(
         `Found ${vulnerabilities.length} vulnerabilities for chart data`
       );
@@ -185,37 +257,59 @@ class DashboardService {
 
   public async getFilteredCount(filters: DashboardFilters): Promise<number> {
     try {
-      let query = db.vulns.toCollection();
+      const totalCount = await db.vulns.count();
+      const useSnapshot = totalCount === 0;
+      let query = useSnapshot ? null : db.vulns.toCollection();
+
+      const baseFilter = (vuln: VulnRow) => {
+        if (filters.severity !== "all" && vuln.severity !== filters.severity) {
+          return false;
+        }
+        if (
+          filters.kaiStatus !== "all" &&
+          vuln.kaiStatus !== filters.kaiStatus
+        ) {
+          return false;
+        }
+        if (
+          filters.analysisMode === "analysis" &&
+          vuln.kaiStatus === "invalid - norisk"
+        ) {
+          return false;
+        }
+        if (
+          filters.analysisMode === "ai-analysis" &&
+          vuln.kaiStatus === "ai-invalid-norisk"
+        ) {
+          return false;
+        }
+        if (filters.dateRange.start) {
+          const startDate = new Date();
+          startDate.setDate(
+            startDate.getDate() - parseInt(filters.dateRange.start)
+          );
+          if (vuln.discoveredAt < startDate.getTime()) return false;
+        }
+        return true;
+      };
 
       // Apply filters to narrow down the dataset
-      if (filters.severity !== "all") {
-        query = query.filter((vuln) => vuln.severity === filters.severity);
+      if (useSnapshot) {
+        const snap = await this.loadSnapshot();
+        if (snap && "rows" in snap) {
+          return (snap.rows as VulnRow[]).filter(baseFilter).length;
+        }
+        if (
+          snap &&
+          "totalCount" in snap &&
+          typeof snap.totalCount === "number"
+        ) {
+          return snap.totalCount as number;
+        }
+        return 0;
       }
 
-      if (filters.kaiStatus !== "all") {
-        query = query.filter((vuln) => vuln.kaiStatus === filters.kaiStatus);
-      }
-
-      // Apply analysis mode filtering
-      if (filters.analysisMode === "analysis") {
-        // Exclude vulnerabilities with kaiStatus "invalid - norisk"
-        query = query.filter((vuln) => vuln.kaiStatus !== "invalid - norisk");
-      } else if (filters.analysisMode === "ai-analysis") {
-        // Exclude vulnerabilities with kaiStatus "ai-invalid-norisk"
-        query = query.filter((vuln) => vuln.kaiStatus !== "ai-invalid-norisk");
-      }
-
-      if (filters.dateRange.start) {
-        const startDate = new Date();
-        startDate.setDate(
-          startDate.getDate() - parseInt(filters.dateRange.start)
-        );
-        query = query.filter(
-          (vuln) => vuln.discoveredAt >= startDate.getTime()
-        );
-      }
-
-      return await query.count();
+      return await (query as any).count();
     } catch (error) {
       console.error("Error getting filtered count:", error);
       throw error;

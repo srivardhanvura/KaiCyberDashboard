@@ -134,7 +134,6 @@
   font-size: 0.9rem;
 }
 
-/* Dark mode adjustments for theme parity */
 @media (prefers-color-scheme: dark) {
   .features-container {
     background-color: #111827;
@@ -142,6 +141,10 @@
   }
   .feature-card {
     background-color: #0b1220;
+  }
+  .loading-container {
+    background-color: #0b1220;
+    border-color: #1f2937;
   }
   .progress-bar {
     background-color: #1f2937;

@@ -7,7 +7,10 @@ import {
   Grow,
   Fade,
   Paper,
+  Tooltip,
+  Button,
 } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { db } from "../db/db";
 import DashboardFilters from "./DashboardFilters";
 import SeverityPieChart from "./charts/SeverityPieChart";
@@ -86,10 +89,9 @@ const DashboardPage = ({
   }, [filters, analysisMode]);
 
   React.useEffect(() => {
-    if (hasData) {
-      loadChartData();
-    }
-  }, [hasData, loadChartData]);
+    // Always attempt to load, service falls back to in-code data when DB is empty
+    loadChartData();
+  }, [loadChartData]);
 
   const handleFilterChange = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
@@ -132,38 +134,53 @@ const DashboardPage = ({
     }
   }, [hasData, getFilteredCount]);
 
-  if (isIngesting && !hasData) {
-    return (
-      <div className="loading-page">
-        <h1>Loading Dashboard...</h1>
+  // Manual refresh handler
+  const handleManualRefresh = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    await loadChartData();
+    const count = await getFilteredCount();
+    setFilteredCount(count);
+    setLoading(false);
+  }, [loadChartData, getFilteredCount]);
 
-        <div className="loading-card">
-          <h3>Processing Vulnerability Data</h3>
+  // Auto-refresh once when ingestion completes
+  const prevIngestingRef = React.useRef(isIngesting);
+  React.useEffect(() => {
+    const wasIngesting = prevIngestingRef.current;
+    prevIngestingRef.current = isIngesting;
+    if (wasIngesting && !isIngesting && hasData) {
+      handleManualRefresh();
+    }
+  }, [isIngesting, hasData, handleManualRefresh]);
 
-          <div className="loading-progress-container">
-            <div className="loading-progress-bar">
-              <div
-                className="loading-progress-fill"
-                style={{ width: `${Math.min(ingestionProgress, 100)}%` }}
-              />
-            </div>
-            <p className="loading-progress-text">
-              {Math.round(ingestionProgress)}% complete
-            </p>
-          </div>
-
-          <p className="loading-description">
-            {totalRows.toLocaleString()} rows processed so far...
-          </p>
-        </div>
-
-        <div className="loading-status">
-          <p>🔄 Data is being processed in the background</p>
-          <p>📊 Dashboard will update automatically when ready</p>
-        </div>
-      </div>
-    );
-  }
+  // Keep counts in sync. When DB is empty, approximate using filtered count (from fallback data in service)
+  React.useEffect(() => {
+    const syncCounts = async () => {
+      try {
+        const count = await db.vulns.count();
+        if (count > 0) {
+          setDataCount(count);
+          setHasData(true);
+        } else if (isIngesting) {
+          const total = await dashboardService.getFilteredCount({
+            severity: "all",
+            kaiStatus: "all",
+            dateRange: { start: "", end: "" },
+            analysisMode: "all",
+          } as any);
+          setDataCount(total);
+          setHasData(false);
+        } else {
+          setDataCount(0);
+          setHasData(false);
+        }
+      } catch (e) {
+        setHasData(false);
+      }
+    };
+    syncCounts();
+  }, [isIngesting]);
 
   if (!hasData && !isIngesting) {
     return (
@@ -199,7 +216,7 @@ const DashboardPage = ({
       {isIngesting && (
         <div className="ingestion-notice">
           <p>
-            🔄 Data ingestion in progress: {Math.round(ingestionProgress)}%
+            🔄 Data processing in progress: {Math.round(ingestionProgress)}%
             complete
           </p>
         </div>
@@ -250,6 +267,25 @@ const DashboardPage = ({
         </Box>
       ) : chartData ? (
         <Box display="flex" flexDirection="column" gap={3}>
+          {isIngesting && (
+            <Box
+              display="flex"
+              justifyContent="flex-end"
+              alignItems="center"
+              mb={1}
+            >
+              <Tooltip title="Refresh charts with the latest ingested data">
+                <Button
+                  onClick={handleManualRefresh}
+                  startIcon={<RefreshIcon />}
+                  size="small"
+                  variant="outlined"
+                >
+                  Refresh charts
+                </Button>
+              </Tooltip>
+            </Box>
+          )}
           <Box display="flex" flexWrap="wrap" gap={3}>
             <Grow in timeout={220}>
               <Paper
@@ -262,7 +298,10 @@ const DashboardPage = ({
                   "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
                 }}
               >
-                <SeverityPieChart data={chartData.severityData} />
+                <SeverityPieChart
+                  data={chartData.severityData}
+                  disableAnimation={isIngesting}
+                />
               </Paper>
             </Grow>
             <Grow in timeout={260}>
@@ -276,7 +315,10 @@ const DashboardPage = ({
                   "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
                 }}
               >
-                <RiskFactorsBarChart data={chartData.riskFactorsData} />
+                <RiskFactorsBarChart
+                  data={chartData.riskFactorsData}
+                  disableAnimation={isIngesting}
+                />
               </Paper>
             </Grow>
           </Box>
@@ -293,7 +335,10 @@ const DashboardPage = ({
                   "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
                 }}
               >
-                <VulnerabilityTrendChart data={chartData.trendData} />
+                <VulnerabilityTrendChart
+                  data={chartData.trendData}
+                  disableAnimation={isIngesting}
+                />
               </Paper>
             </Grow>
             <Grow in timeout={340}>
@@ -307,7 +352,10 @@ const DashboardPage = ({
                   "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
                 }}
               >
-                <CVSSScatterPlot data={chartData.cvssData} />
+                <CVSSScatterPlot
+                  data={chartData.cvssData}
+                  disableAnimation={isIngesting}
+                />
               </Paper>
             </Grow>
           </Box>

@@ -44,7 +44,9 @@ class DataService {
         this.notifyListeners();
         console.log("Data already exists, skipping ingestion");
       } else {
-        console.log("No existing data found");
+        console.log("No existing data found; starting ingestion immediately");
+        // Start ingestion immediately when no data is present
+        this.startIngestion();
       }
     } catch (error) {
       console.error("Error checking existing data:", error);
